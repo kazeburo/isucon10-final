@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -236,7 +235,7 @@ func (b *benchmarkReportService) saveAsRunning(db sqlx.Execer, job *xsuportal.Be
 
 func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 	select {
-	case _ := <-benchmarkJobIdChannel:
+	case _ = <-benchmarkJobIdChannel:
 		var job xsuportal.BenchmarkJob
 		err := sqlx.Get(
 			db,
