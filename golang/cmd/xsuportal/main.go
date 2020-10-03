@@ -61,7 +61,7 @@ func StaticHeader(next echo.HandlerFunc) echo.HandlerFunc {
 
 func main() {
 	srv := echo.New()
-	srv.Debug = util.GetEnv("DEBUG", "") != ""
+	srv.Debug = false
 	srv.Server.Addr = fmt.Sprintf(":%v", util.GetEnv("PORT", "9292"))
 	srv.HideBanner = true
 
@@ -74,7 +74,7 @@ func main() {
 	}
 
 	db, _ = xsuportal.GetDB()
-	db.SetMaxOpenConns(10)
+	db.SetMaxOpenConns(30)
 
 	//srv.Use(middleware.Logger())
 	srv.Use(middleware.Recover())
