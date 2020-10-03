@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"time"
 
