@@ -995,7 +995,7 @@ func (*RegistrationService) JoinTeam(e echo.Context) error {
 	var team xsuportal.Team
 	err = tx.Get(
 		&team,
-		"SELECT * FROM `teams` WHERE `id` = ? AND `invite_token` = ? AND `withdrawn` = FALSE LIMIT 1 FOR UPDATE",
+		"SELECT * FROM `teams` WHERE `id` = ? AND `invite_token` = ? AND `withdrawn` = FALSE FOR UPDATE",
 		req.TeamId,
 		req.InviteToken,
 	)
@@ -1020,7 +1020,7 @@ func (*RegistrationService) JoinTeam(e echo.Context) error {
 
 	contestant, _ := getCurrentContestant(e, tx, false)
 	_, err = tx.Exec(
-		"UPDATE `contestants` SET `team_id` = ?, `name` = ?, `student` = ? WHERE `id` = ? LIMIT 1",
+		"UPDATE `contestants` SET `team_id` = ?, `name` = ?, `student` = ? WHERE `id` = ?",
 		req.TeamId,
 		req.Name,
 		req.IsStudent,
@@ -1210,7 +1210,7 @@ func getCurrentContestant(e echo.Context, db sqlx.Queryer, lock bool) (*xsuporta
 		return nil, nil
 	}
 	var contestant xsuportal.Contestant
-	query := "SELECT * FROM `contestants` WHERE `id` = ? LIMIT 1"
+	query := "SELECT * FROM `contestants` WHERE `id` = ?"
 	if lock {
 		query += " FOR UPDATE"
 	}
@@ -1238,7 +1238,7 @@ func getCurrentTeam(e echo.Context, db sqlx.Queryer, lock bool) (*xsuportal.Team
 		return nil, nil
 	}
 	var team xsuportal.Team
-	query := "SELECT * FROM `teams` WHERE `id` = ? LIMIT 1"
+	query := "SELECT * FROM `teams` WHERE `id` = ?"
 	if lock {
 		query += " FOR UPDATE"
 	}
