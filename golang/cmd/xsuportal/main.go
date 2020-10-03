@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -436,17 +435,6 @@ func (*ContestantService) EnqueueBenchmarkJob(e echo.Context) error {
 		return fmt.Errorf("commit tx: %w", err)
 	}
 	j := makeBenchmarkJobPB(&job)
-
-	//
-	url_target := "http://localhost:60051/api/contestant/benchmark_jobs"
-	args := url.Values{}
-	args.Add("id", strconv.FormatInt(j.Id, 10))
-	res, err := http.PostForm(url_target, args)
-	defer res.Body.Close()
-	if err != nil {
-		return fmt.Errorf("pass job id to benchmark: %w", err)
-	}
-	//
 	return writeProto(e, http.StatusOK, &contestantpb.EnqueueBenchmarkJobResponse{
 		Job: j,
 	})
