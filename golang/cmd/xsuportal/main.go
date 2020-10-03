@@ -80,9 +80,6 @@ func main() {
 	srv.Use(middleware.Recover())
 	srv.Use(session.Middleware(sessions.NewCookieStore([]byte("tagomoris"))))
 	srv.Use(StaticHeader)
-	srv.Use(middleware.GzipWithConfig(middleware.GzipConfig{
-		Level: 5,
-	}))
 
 	srv.File("/", "public/audience.html")
 	srv.File("/registration", "public/audience.html")
