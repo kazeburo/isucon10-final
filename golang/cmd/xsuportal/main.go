@@ -596,9 +596,26 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 		return wrapError("check session", err)
 	}
 
-	afterStr := e.QueryParam("after")
-
 	contestant, _ := getCurrentContestant(e, db, false)
+
+	var pushSubscription xsuportal.PushSubscription
+	err := sqlx.Select(
+		db,
+		&pushSubscription,
+		"SELECT * FROM `push_subscriptions` WHERE `contestant_id` = ? LIMIT 1",
+		contestant.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("select push subscriptions: %w", err)
+	}
+	if err != sql.ErrNoRows {
+		return writeProto(e, http.StatusOK, &contestantpb.ListNotificationsResponse{
+			Notifications: []*resourcespb.Notification{},
+			//			LastAnsweredClarificationId: lastAnsweredClarificationID,
+		})
+	}
+
+	afterStr := e.QueryParam("after")
 
 	var notifications []*xsuportal.Notification
 	if afterStr != "" {
@@ -647,7 +664,7 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 	team, _ := getCurrentTeam(e, db, false)
 
 	var lastAnsweredClarificationID int64
-	err := db.Get(
+	err = db.Get(
 		&lastAnsweredClarificationID,
 		"(SELECT `id` FROM `clarifications` WHERE `team_id` = ? AND `answered_at` IS NOT NULL ORDER BY `id` DESC LIMIT 1) UNION (SELECT `id` FROM `clarifications` WHERE `disclosed` = TRUE AND `answered_at` IS NOT NULL ORDER BY `id` DESC LIMIT 1) ORDER BY `id` DESC LIMIT 1",
 		team.ID,
