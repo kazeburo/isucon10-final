@@ -74,7 +74,8 @@ func main() {
 	}
 
 	db, _ = xsuportal.GetDB()
-	db.SetMaxOpenConns(30)
+	db.SetMaxOpenConns(100)
+	db.SetMaxIdleConns(100)
 
 	//srv.Use(middleware.Logger())
 	srv.Use(middleware.Recover())
