@@ -8,7 +8,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"sync"
 
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/golang/protobuf/proto"
@@ -23,41 +22,37 @@ const (
 	WebpushSubject             = "xsuportal@example.com"
 )
 
-type Notifier struct {
-	mu      sync.Mutex
-	options *webpush.Options
-}
+var webpushOptions *webpush.Options
 
-func (n *Notifier) VAPIDKey() *webpush.Options {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	if n.options == nil {
-		pemBytes, err := ioutil.ReadFile(WebpushVAPIDPrivateKeyPath)
-		if err != nil {
-			return nil
-		}
-		block, _ := pem.Decode(pemBytes)
-		if block == nil {
-			return nil
-		}
-		priKey, err := x509.ParseECPrivateKey(block.Bytes)
-		if err != nil {
-			return nil
-		}
-		priBytes := priKey.D.Bytes()
-		pubBytes := elliptic.Marshal(priKey.Curve, priKey.X, priKey.Y)
-		pri := base64.RawURLEncoding.EncodeToString(priBytes)
-		pub := base64.RawURLEncoding.EncodeToString(pubBytes)
-		n.options = &webpush.Options{
-			Subscriber:      WebpushSubject,
-			VAPIDPrivateKey: pri,
-			VAPIDPublicKey:  pub,
-		}
+func PreLoadVAPIDKey() {
+	pemBytes, err := ioutil.ReadFile(WebpushVAPIDPrivateKeyPath)
+	if err != nil {
+		return
 	}
-	return n.options
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return
+	}
+	priKey, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return
+	}
+	priBytes := priKey.D.Bytes()
+	pubBytes := elliptic.Marshal(priKey.Curve, priKey.X, priKey.Y)
+	pri := base64.RawURLEncoding.EncodeToString(priBytes)
+	pub := base64.RawURLEncoding.EncodeToString(pubBytes)
+	webpushOptions = &webpush.Options{
+		Subscriber:      WebpushSubject,
+		VAPIDPrivateKey: pri,
+		VAPIDPublicKey:  pub,
+	}
 }
 
-func (n *Notifier) NotifyClarificationAnswered(db sqlx.Ext, c *Clarification, updated bool) error {
+func VAPIDKey() *webpush.Options {
+	return webpushOptions
+}
+
+func NotifyClarificationAnswered(db sqlx.Ext, c *Clarification, updated bool) error {
 	var contestants []struct {
 		ID     string `db:"id"`
 		TeamID int64  `db:"team_id"`
@@ -92,21 +87,21 @@ func (n *Notifier) NotifyClarificationAnswered(db sqlx.Ext, c *Clarification, up
 				},
 			},
 		}
-		notification, err := n.notify(db, notificationPB, contestant.ID)
+		notification, err := notify(db, notificationPB, contestant.ID)
 		if err != nil {
 			return fmt.Errorf("notify: %w", err)
 		}
-		if n.VAPIDKey() != nil {
+		if VAPIDKey() != nil {
 			notificationPB.Id = notification.ID
 			notificationPB.CreatedAt = timestamppb.New(notification.CreatedAt)
 
-			n.sendNotificationByWebPush(db, contestant.ID, notificationPB)
+			sendNotificationByWebPush(db, contestant.ID, notificationPB)
 		}
 	}
 	return nil
 }
 
-func (n *Notifier) NotifyBenchmarkJobFinished(db sqlx.Ext, job *BenchmarkJob) error {
+func NotifyBenchmarkJobFinished(db sqlx.Ext, job *BenchmarkJob) error {
 	var contestants []struct {
 		ID     string `db:"id"`
 		TeamID int64  `db:"team_id"`
@@ -128,21 +123,21 @@ func (n *Notifier) NotifyBenchmarkJobFinished(db sqlx.Ext, job *BenchmarkJob) er
 				},
 			},
 		}
-		notification, err := n.notify(db, notificationPB, contestant.ID)
+		notification, err := notify(db, notificationPB, contestant.ID)
 		if err != nil {
 			return fmt.Errorf("notify: %w", err)
 		}
-		if n.VAPIDKey() != nil {
+		if VAPIDKey() != nil {
 			notificationPB.Id = notification.ID
 			notificationPB.CreatedAt = timestamppb.New(notification.CreatedAt)
 
-			n.sendNotificationByWebPush(db, contestant.ID, notificationPB)
+			sendNotificationByWebPush(db, contestant.ID, notificationPB)
 		}
 	}
 	return nil
 }
 
-func (n *Notifier) notify(db sqlx.Ext, notificationPB *resources.Notification, contestantID string) (*Notification, error) {
+func notify(db sqlx.Ext, notificationPB *resources.Notification, contestantID string) (*Notification, error) {
 	m, err := proto.Marshal(notificationPB)
 	if err != nil {
 		return nil, fmt.Errorf("marshal notification: %w", err)
@@ -170,7 +165,7 @@ func (n *Notifier) notify(db sqlx.Ext, notificationPB *resources.Notification, c
 	return &notification, nil
 }
 
-func (n *Notifier) sendNotificationByWebPush(db sqlx.Ext, contestantId string, notificationPB *resources.Notification) error {
+func sendNotificationByWebPush(db sqlx.Ext, contestantId string, notificationPB *resources.Notification) error {
 	var pushSubscription PushSubscription
 	err := sqlx.Select(
 		db,
@@ -192,7 +187,7 @@ func (n *Notifier) sendNotificationByWebPush(db sqlx.Ext, contestantId string, n
 	message := make([]byte, base64.StdEncoding.EncodedLen(len(b)))
 	base64.StdEncoding.Encode(message, b)
 
-	options := n.VAPIDKey()
+	options := VAPIDKey()
 
 	// Send Notification
 	resp, err := webpush.SendNotification(message,
