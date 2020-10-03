@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -37,7 +38,7 @@ import (
 )
 
 const (
-	TeamCapacity               = 100
+	TeamCapacity               = 50
 	AdminID                    = "admin"
 	AdminPassword              = "admin"
 	DebugContestStatusFilePath = "/tmp/XSUPORTAL_CONTEST_STATUS"
@@ -65,7 +66,7 @@ func main() {
 	db, _ = xsuportal.GetDB()
 	db.SetMaxOpenConns(10)
 
-	srv.Use(middleware.Logger())
+	//srv.Use(middleware.Logger())
 	srv.Use(middleware.Recover())
 	srv.Use(session.Middleware(sessions.NewCookieStore([]byte("tagomoris"))))
 
@@ -1140,11 +1141,28 @@ func (*AudienceService) ListTeams(e echo.Context) error {
 	return writeProto(e, http.StatusOK, res)
 }
 
+var audienceDashboardCacheLock sync.RWMutex
+var audienceDashboardCacheTime int64
+var audienceDashboardCache *resourcespb.Leaderboard
+
 func (*AudienceService) Dashboard(e echo.Context) error {
+	audienceDashboardCacheLock.RLock()
+	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
+		defer audienceDashboardCacheLock.RUnlock()
+		return writeProto(e, http.StatusOK, &audiencepb.DashboardResponse{
+			Leaderboard: audienceDashboardCache,
+		})
+	}
+	audienceDashboardCacheLock.RUnlock()
+
 	leaderboard, err := makeLeaderboardPB(e, 0)
 	if err != nil {
 		return fmt.Errorf("make leaderboard: %w", err)
 	}
+	audienceDashboardCacheLock.Lock()
+	audienceDashboardCacheTime = time.Now().UnixNano() + 900000
+	audienceDashboardCache = leaderboard
+	audienceDashboardCacheLock.Unlock()
 	return writeProto(e, http.StatusOK, &audiencepb.DashboardResponse{
 		Leaderboard: leaderboard,
 	})

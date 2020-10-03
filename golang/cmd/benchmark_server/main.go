@@ -260,7 +260,7 @@ func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 func pollBenchmarkJobOld(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 	for i := 0; i < 10; i++ {
 		if i >= 1 {
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 		var job xsuportal.BenchmarkJob
 		err := sqlx.Get(
