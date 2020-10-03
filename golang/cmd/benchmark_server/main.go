@@ -236,13 +236,12 @@ func (b *benchmarkReportService) saveAsRunning(db sqlx.Execer, job *xsuportal.Be
 
 func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 	select {
-	case id := <-benchmarkJobIdChannel:
+	case _ := <-benchmarkJobIdChannel:
 		var job xsuportal.BenchmarkJob
 		err := sqlx.Get(
 			db,
 			&job,
-			"SELECT * FROM `benchmark_jobs` WHERE `id` = ? AND `status` = ? ORDER BY `id` LIMIT 1",
-			id,
+			"SELECT * FROM `benchmark_jobs` WHERE `status` = ? ORDER BY `id` LIMIT 1",
 			resources.BenchmarkJob_PENDING,
 		)
 		if err == sql.ErrNoRows {
@@ -281,11 +280,7 @@ func pollBenchmarkJobOld(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 }
 
 func enqueueBenchmarkJob(e echo.Context) error {
-	id, err := strconv.ParseInt(e.Param("id"), 10, 64)
-	if err != nil {
-		return e.NoContent(http.StatusBadRequest)
-	}
-	benchmarkJobIdChannel <- id
+	benchmarkJobIdChannel <- 42
 	return e.JSON(http.StatusOK, nil)
 }
 

@@ -440,7 +440,6 @@ func (*ContestantService) EnqueueBenchmarkJob(e echo.Context) error {
 	//
 	url_target := "http://localhost:60051/api/contestant/benchmark_jobs"
 	args := url.Values{}
-	args.Add("id", strconv.FormatInt(j.Id, 10))
 	res, err := http.PostForm(url_target, args)
 	defer res.Body.Close()
 	if err != nil {
