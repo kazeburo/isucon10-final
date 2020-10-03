@@ -200,8 +200,8 @@ func sendNotificationByWebPush(db sqlx.Ext, contestantId string, notificationPB 
 		},
 		&webpush.Options{
 			Subscriber:      options.Subscriber,
-			VAPIDPublicKey:  options.VAPIDPrivateKey,
-			VAPIDPrivateKey: options.VAPIDPublicKey,
+			VAPIDPublicKey:  options.VAPIDPublicKey,
+			VAPIDPrivateKey: options.VAPIDPrivateKey,
 			TTL:             30,
 		})
 	if err != nil {
