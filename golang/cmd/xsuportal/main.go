@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -1128,11 +1129,26 @@ func (*AudienceService) ListTeams(e echo.Context) error {
 	return writeProto(e, http.StatusOK, res)
 }
 
+var audienceDashboardCacheLock sync.RWMutex
+var audienceDashboardCacheTime int64
+var audienceDashboardCache *resourcespb.Leaderboard
+
 func (*AudienceService) Dashboard(e echo.Context) error {
+	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
+		audienceDashboardCacheLock.RLock()
+		defer audienceDashboardCacheLock.RUnlock()
+		return writeProto(e, http.StatusOK, &audiencepb.DashboardResponse{
+			Leaderboard: audienceDashboardCache,
+		})
+	}
 	leaderboard, err := makeLeaderboardPB(e, 0)
 	if err != nil {
 		return fmt.Errorf("make leaderboard: %w", err)
 	}
+	audienceDashboardCacheLock.Lock()
+	audienceDashboardCacheTime = time.Now().UnixNano() + 900000
+	audienceDashboardCache = leaderboard
+	audienceDashboardCacheLock.Unlock()
 	return writeProto(e, http.StatusOK, &audiencepb.DashboardResponse{
 		Leaderboard: leaderboard,
 	})
