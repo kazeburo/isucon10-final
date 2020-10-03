@@ -1134,13 +1134,15 @@ var audienceDashboardCacheTime int64
 var audienceDashboardCache *resourcespb.Leaderboard
 
 func (*AudienceService) Dashboard(e echo.Context) error {
+	audienceDashboardCacheLock.RLock()
 	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
-		audienceDashboardCacheLock.RLock()
 		defer audienceDashboardCacheLock.RUnlock()
 		return writeProto(e, http.StatusOK, &audiencepb.DashboardResponse{
 			Leaderboard: audienceDashboardCache,
 		})
 	}
+	audienceDashboardCacheLock.RUnlock()
+
 	leaderboard, err := makeLeaderboardPB(e, 0)
 	if err != nil {
 		return fmt.Errorf("make leaderboard: %w", err)
