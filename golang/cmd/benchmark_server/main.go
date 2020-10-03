@@ -249,7 +249,7 @@ func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 			return nil, fmt.Errorf("get benchmark job: %w", err)
 		}
 		return &job, nil
-	case <-time.After(50 * 10 * time.Millisecond):
+	case <-time.After(200 * time.Millisecond):
 		return nil, nil
 	}
 }
