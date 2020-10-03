@@ -99,7 +99,8 @@ func (n *Notifier) NotifyClarificationAnswered(db sqlx.Ext, c *Clarification, up
 		if n.VAPIDKey() != nil {
 			notificationPB.Id = notification.ID
 			notificationPB.CreatedAt = timestamppb.New(notification.CreatedAt)
-			// TODO: Web Push IIKANJI NI SHITE
+
+			n.sendNotificationByWebPush(db, contestant.ID, notificationPB)
 		}
 	}
 	return nil
@@ -135,48 +136,7 @@ func (n *Notifier) NotifyBenchmarkJobFinished(db sqlx.Ext, job *BenchmarkJob) er
 			notificationPB.Id = notification.ID
 			notificationPB.CreatedAt = timestamppb.New(notification.CreatedAt)
 
-			var pushSubscription PushSubscription
-			err := sqlx.Select(
-				db,
-				&pushSubscription,
-				"SELECT * FROM `push_subscriptions` WHERE `contestant_id` = ? LIMIT 1",
-				contestant.ID,
-			)
-			if err != nil {
-				return fmt.Errorf("select push subscriptions: %w", err)
-			}
-			if err == sql.ErrNoRows {
-				continue
-			}
-
-			b, err := proto.Marshal(notificationPB)
-			if err != nil {
-				return fmt.Errorf("marshal notification: %w", err)
-			}
-			message := make([]byte, base64.StdEncoding.EncodedLen(len(b)))
-			base64.StdEncoding.Encode(message, b)
-
-			options := n.VAPIDKey()
-
-			// Send Notification
-			resp, err := webpush.SendNotification(message,
-				&webpush.Subscription{
-					Endpoint: pushSubscription.Endpoint,
-					Keys: webpush.Keys{
-						Auth:   pushSubscription.Auth,
-						P256dh: pushSubscription.P256DH,
-					},
-				},
-				&webpush.Options{
-					Subscriber:      options.Subscriber,
-					VAPIDPublicKey:  options.VAPIDPrivateKey,
-					VAPIDPrivateKey: options.VAPIDPublicKey,
-					TTL:             30,
-				})
-			if err != nil {
-				// TODO: Handle error
-			}
-			defer resp.Body.Close()
+			n.sendNotificationByWebPush(db, contestant.ID, notificationPB)
 		}
 	}
 	return nil
@@ -208,4 +168,50 @@ func (n *Notifier) notify(db sqlx.Ext, notificationPB *resources.Notification, c
 		return nil, fmt.Errorf("get inserted notification: %w", err)
 	}
 	return &notification, nil
+}
+
+func (n *Notifier) sendNotificationByWebPush(db sqlx.Ext, contestantId string, notificationPB *resources.Notification) error {
+	var pushSubscription PushSubscription
+	err := sqlx.Select(
+		db,
+		&pushSubscription,
+		"SELECT * FROM `push_subscriptions` WHERE `contestant_id` = ? LIMIT 1",
+		contestantId,
+	)
+	if err != nil {
+		return fmt.Errorf("select push subscriptions: %w", err)
+	}
+	if err == sql.ErrNoRows {
+		return nil
+	}
+
+	b, err := proto.Marshal(notificationPB)
+	if err != nil {
+		return fmt.Errorf("marshal payload: %w", err)
+	}
+	message := make([]byte, base64.StdEncoding.EncodedLen(len(b)))
+	base64.StdEncoding.Encode(message, b)
+
+	options := n.VAPIDKey()
+
+	// Send Notification
+	resp, err := webpush.SendNotification(message,
+		&webpush.Subscription{
+			Endpoint: pushSubscription.Endpoint,
+			Keys: webpush.Keys{
+				Auth:   pushSubscription.Auth,
+				P256dh: pushSubscription.P256DH,
+			},
+		},
+		&webpush.Options{
+			Subscriber:      options.Subscriber,
+			VAPIDPublicKey:  options.VAPIDPrivateKey,
+			VAPIDPrivateKey: options.VAPIDPublicKey,
+			TTL:             30,
+		})
+	if err != nil {
+		return fmt.Errorf("webpush SendNotification: %w", err)
+	}
+	defer resp.Body.Close()
+	return nil
 }

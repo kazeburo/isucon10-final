@@ -61,7 +61,7 @@ func StaticHeader(next echo.HandlerFunc) echo.HandlerFunc {
 
 func main() {
 	srv := echo.New()
-	srv.Debug = util.GetEnv("DEBUG", "") != ""
+	srv.Debug = false
 	srv.Server.Addr = fmt.Sprintf(":%v", util.GetEnv("PORT", "9292"))
 	srv.HideBanner = true
 
@@ -74,7 +74,7 @@ func main() {
 	}
 
 	db, _ = xsuportal.GetDB()
-	db.SetMaxOpenConns(10)
+	db.SetMaxOpenConns(30)
 
 	//srv.Use(middleware.Logger())
 	srv.Use(middleware.Recover())
@@ -606,7 +606,7 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 		}
 		err = db.Select(
 			&notifications,
-			"SELECT id FROM `notifications` WHERE `contestant_id` = ? AND `id` > ? AND `read` = FALSE ORDER BY `id`",
+			"SELECT * FROM `notifications` WHERE `contestant_id` = ? AND `id` > ? ORDER BY `id`",
 			contestant.ID,
 			after,
 		)
@@ -616,7 +616,7 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 	} else {
 		err := db.Select(
 			&notifications,
-			"SELECT id FROM `notifications` WHERE `contestant_id` = ? AND `read` = FALSE ORDER BY `id`",
+			"SELECT * FROM `notifications` WHERE `contestant_id` = ? ORDER BY `id`",
 			contestant.ID,
 		)
 		if err != sql.ErrNoRows && err != nil {
@@ -627,15 +627,19 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 	if len(notifications) > 0 {
 		nIDs := make([]string, 0)
 		for _, n := range notifications {
-			nIDs = append(nIDs, strconv.FormatInt(n.ID, 10))
+			if !n.Read {
+				nIDs = append(nIDs, strconv.FormatInt(n.ID, 10))
+			}
 		}
-		query := strings.Join(nIDs, ",")
-		_, err := db.Exec(
-			"UPDATE `notifications` SET `read` = TRUE WHERE `contestant_id` = ? AND `read` = FALSE AND id IN ("+query+")",
-			contestant.ID,
-		)
-		if err != nil {
-			return fmt.Errorf("update notifications: %w", err)
+		if len(nIDs) > 0 {
+			query := strings.Join(nIDs, ",")
+			_, err := db.Exec(
+				"UPDATE `notifications` SET `read` = TRUE WHERE `contestant_id` = ? AND `read` = FALSE AND id IN ("+query+")",
+				contestant.ID,
+			)
+			if err != nil {
+				return fmt.Errorf("update notifications: %w", err)
+			}
 		}
 	}
 	team, _ := getCurrentTeam(e, db, false)
