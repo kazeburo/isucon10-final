@@ -49,6 +49,17 @@ const (
 var db *sqlx.DB
 var notifier xsuportal.Notifier
 
+func StaticHeader(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		e := next(c)
+		path := c.Request().URL.Path
+		if path == "/favion" || strings.HasPrefix(path, "/packs/") {
+			c.Response().Header().Set("Cache-Control", "max-age=3600")
+		}
+		return e
+	}
+}
+
 func main() {
 	srv := echo.New()
 	srv.Debug = util.GetEnv("DEBUG", "") != ""
@@ -69,6 +80,7 @@ func main() {
 	//srv.Use(middleware.Logger())
 	srv.Use(middleware.Recover())
 	srv.Use(session.Middleware(sessions.NewCookieStore([]byte("tagomoris"))))
+	srv.Use(StaticHeader)
 
 	srv.File("/", "public/audience.html")
 	srv.File("/registration", "public/audience.html")
