@@ -260,7 +260,7 @@ func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 func pollBenchmarkJobOld(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 	for i := 0; i < 10; i++ {
 		if i >= 1 {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 		}
 		var job xsuportal.BenchmarkJob
 		err := sqlx.Get(
@@ -305,7 +305,9 @@ func main() {
 	benchmarkJobIdChannel = make(chan int64, 100*2) // xsuportal.TeamCapacity
 	srv := echo.New()
 	srv.POST("/api/contestant/benchmark_jobs", enqueueBenchmarkJob)
-	srv.Start(":60051")
+	go func() {
+		srv.Start(":60051")
+	}()
 
 	server := grpc.NewServer()
 
