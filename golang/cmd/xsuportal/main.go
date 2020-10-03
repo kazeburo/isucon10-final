@@ -627,7 +627,7 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 	if len(notifications) > 0 {
 		nIDs := make([]string, 0)
 		for _, n := range notifications {
-			if !n.READ {
+			if !n.Read {
 				nIDs = append(nIDs, strconv.FormatInt(n.ID, 10))
 			}
 		}
@@ -637,9 +637,9 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 				"UPDATE `notifications` SET `read` = TRUE WHERE `contestant_id` = ? AND `read` = FALSE AND id IN ("+query+")",
 				contestant.ID,
 			)
-		)
-		if err != nil {
-			return fmt.Errorf("update notifications: %w", err)
+			if err != nil {
+				return fmt.Errorf("update notifications: %w", err)
+			}
 		}
 	}
 	team, _ := getCurrentTeam(e, db, false)
