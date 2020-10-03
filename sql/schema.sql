@@ -57,7 +57,7 @@ CREATE TABLE `clarifications` (
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 ALTER TABLE `clarifications` ADD INDEX idx1 (`team_id`, `answered_at`);
-ALTER TABLE `clarifications` ADD INDEX idx1 (`disclosed`, `answered_at`);
+ALTER TABLE `clarifications` ADD INDEX idx2 (`disclosed`, `answered_at`);
 
 DROP TABLE IF EXISTS `notifications`;
 CREATE TABLE `notifications` (
