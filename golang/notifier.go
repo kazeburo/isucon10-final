@@ -28,10 +28,6 @@ type Notifier struct {
 }
 
 func (n *Notifier) VAPIDKey() *webpush.Options {
-	return nil
-}
-
-func (n *Notifier) VAPIDKeyOld() *webpush.Options {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if n.options == nil {
@@ -170,3 +166,5 @@ func (n *Notifier) notify(db sqlx.Ext, notificationPB *resources.Notification, c
 	}
 	return &notification, nil
 }
+
+
