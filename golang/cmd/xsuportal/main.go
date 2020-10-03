@@ -609,7 +609,7 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 		}
 		err = db.Select(
 			&notifications,
-			"SELECT * FROM `notifications` WHERE `contestant_id` = ? AND `id` > ? ORDER BY `id`",
+			"SELECT id FROM `notifications` WHERE `contestant_id` = ? AND `id` > ? AND `read` = FALSE ORDER BY `id`",
 			contestant.ID,
 			after,
 		)
@@ -619,7 +619,7 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 	} else {
 		err := db.Select(
 			&notifications,
-			"SELECT * FROM `notifications` WHERE `contestant_id` = ? ORDER BY `id`",
+			"SELECT id FROM `notifications` WHERE `contestant_id` = ? AND `read` = FALSE ORDER BY `id`",
 			contestant.ID,
 		)
 		if err != sql.ErrNoRows && err != nil {
