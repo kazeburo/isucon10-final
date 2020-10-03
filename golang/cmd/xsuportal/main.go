@@ -51,12 +51,11 @@ var notifier xsuportal.Notifier
 
 func StaticHeader(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		e := next(c)
 		path := c.Request().URL.Path
-		if path == "/favion" || strings.HasPrefix(path, "/packs/") {
+		if path == "/favicon.ico" || strings.HasPrefix(path, "/packs/") {
 			c.Response().Header().Set("Cache-Control", "max-age=3600")
 		}
-		return e
+		return next(c)
 	}
 }
 
