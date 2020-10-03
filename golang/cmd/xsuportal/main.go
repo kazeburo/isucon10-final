@@ -643,7 +643,7 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 	var lastAnsweredClarificationID int64
 	err := db.Get(
 		&lastAnsweredClarificationID,
-		"SELECT `id` FROM `clarifications` WHERE (`team_id` = ? OR `disclosed` = TRUE) AND `answered_at` IS NOT NULL ORDER BY `id` DESC LIMIT 1",
+		"(SELECT `id` FROM `clarifications` WHERE `team_id` = ? AND `answered_at` IS NOT NULL ORDER BY `id` DESC LIMIT 1) UNION (SELECT `id` FROM `clarifications` WHERE `disclosed` = TRUE AND `answered_at` IS NOT NULL ORDER BY `id` DESC LIMIT 1) ORDER BY `id` DESC LIMIT 1",
 		team.ID,
 	)
 	if err != sql.ErrNoRows && err != nil {

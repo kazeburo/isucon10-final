@@ -56,6 +56,9 @@ CREATE TABLE `clarifications` (
   `updated_at` DATETIME(6) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
+ALTER TABLE `clarifications` ADD INDEX idx1 (`team_id`, `answered_at`);
+ALTER TABLE `clarifications` ADD INDEX idx1 (`disclosed`, `answered_at`);
+
 DROP TABLE IF EXISTS `notifications`;
 CREATE TABLE `notifications` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
