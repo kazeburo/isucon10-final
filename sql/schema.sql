@@ -9,7 +9,7 @@ CREATE TABLE `contestants` (
   `created_at` DATETIME(6) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
-ALTER TABLE `contestants` ADD INDEX idx1 (`team_id`);
+ALTER TABLE `contestants` ADD INDEX idx1 (`team_id`,`created_at`);
 
 DROP TABLE IF EXISTS `teams`;
 CREATE TABLE `teams` (
