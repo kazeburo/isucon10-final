@@ -84,6 +84,8 @@ CREATE TABLE `push_subscriptions` (
   UNIQUE KEY (`contestant_id`, `endpoint`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
+ALTER TABLE `push_subscriptions` ADD INDEX idx1 (`contestant_id`);
+
 DROP TABLE IF EXISTS `contest_config`;
 CREATE TABLE `contest_config` (
   `registration_open_at` DATETIME(6) NOT NULL,
