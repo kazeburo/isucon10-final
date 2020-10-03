@@ -70,6 +70,7 @@ CREATE TABLE `notifications` (
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 ALTER TABLE `notifications` ADD INDEX idx1 (`contestant_id`,`id`);
+ALTER TABLE `notifications` ADD INDEX idx2 (`contestant_id`,`read`);
 
 DROP TABLE IF EXISTS `push_subscriptions`;
 CREATE TABLE `push_subscriptions` (
