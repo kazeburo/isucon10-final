@@ -598,10 +598,10 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 
 	contestant, _ := getCurrentContestant(e, db, false)
 
-	var pushSubscription xsuportal.PushSubscription
+	var pushSubscriptions []*xsuportal.PushSubscription
 	err := sqlx.Select(
 		db,
-		&pushSubscription,
+		&pushSubscriptions,
 		"SELECT * FROM `push_subscriptions` WHERE `contestant_id` = ? LIMIT 1",
 		contestant.ID,
 	)
