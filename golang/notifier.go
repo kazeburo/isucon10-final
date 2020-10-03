@@ -167,7 +167,7 @@ func notify(db sqlx.Ext, notificationPB *resources.Notification, contestantID st
 
 func sendNotificationByWebPush(db sqlx.Ext, contestantId string, notificationPB *resources.Notification) error {
 	var pushSubscription PushSubscription
-	err := sqlx.Select(
+	err := sqlx.Get(
 		db,
 		&pushSubscription,
 		"SELECT * FROM `push_subscriptions` WHERE `contestant_id` = ? LIMIT 1",
