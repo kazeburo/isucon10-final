@@ -585,12 +585,7 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 
 	afterStr := e.QueryParam("after")
 
-	tx, err := db.Beginx()
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback()
-	contestant, _ := getCurrentContestant(e, tx, false)
+	contestant, _ := getCurrentContestant(e, db, false)
 
 	var notifications []*xsuportal.Notification
 	if afterStr != "" {
@@ -598,7 +593,7 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 		if err != nil {
 			return fmt.Errorf("parse after: %w", err)
 		}
-		err = tx.Select(
+		err = db.Select(
 			&notifications,
 			"SELECT * FROM `notifications` WHERE `contestant_id` = ? AND `id` > ? ORDER BY `id`",
 			contestant.ID,
@@ -608,7 +603,7 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 			return fmt.Errorf("select notifications(after=%v): %w", after, err)
 		}
 	} else {
-		err = tx.Select(
+		err := db.Select(
 			&notifications,
 			"SELECT * FROM `notifications` WHERE `contestant_id` = ? ORDER BY `id`",
 			contestant.ID,
@@ -617,20 +612,25 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 			return fmt.Errorf("select notifications: %w", err)
 		}
 	}
-	_, err = tx.Exec(
-		"UPDATE `notifications` SET `read` = TRUE WHERE `contestant_id` = ? AND `read` = FALSE",
-		contestant.ID,
-	)
-	if err != nil {
-		return fmt.Errorf("update notifications: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit tx: %w", err)
+
+	if len(notifications) > 0 {
+		nIDs := make([]string, 0)
+		for _, n := range notifications {
+			nIDs = append(nIDs, strconv.FormatInt(n.ID, 10))
+		}
+		query := strings.Join(nIDs, ",")
+		_, err := db.Exec(
+			"UPDATE `notifications` SET `read` = TRUE WHERE `contestant_id` = ? AND `read` = FALSE AND id IN ("+query+")",
+			contestant.ID,
+		)
+		if err != nil {
+			return fmt.Errorf("update notifications: %w", err)
+		}
 	}
 	team, _ := getCurrentTeam(e, db, false)
 
 	var lastAnsweredClarificationID int64
-	err = db.Get(
+	err := db.Get(
 		&lastAnsweredClarificationID,
 		"SELECT `id` FROM `clarifications` WHERE (`team_id` = ? OR `disclosed` = TRUE) AND `answered_at` IS NOT NULL ORDER BY `id` DESC LIMIT 1",
 		team.ID,
