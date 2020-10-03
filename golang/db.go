@@ -16,7 +16,7 @@ func GetDB() (*sqlx.DB, error) {
 	mysqlConfig.DBName = util.GetEnv("MYSQL_DATABASE", "xsuportal")
 	mysqlConfig.Params = map[string]string{
 		"time_zone": "'+00:00'",
-		"interpolateParams": true,
+		"interpolateParams": "true",
 	}
 	mysqlConfig.ParseTime = true
 
