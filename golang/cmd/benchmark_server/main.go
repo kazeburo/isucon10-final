@@ -238,7 +238,7 @@ func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 	select {
 	case id := <-benchmarkJobIdChannel:
 		var job xsuportal.BenchmarkJob
-		log.Print("[INFO] pollBenchmarkJob id[%v] ", err)
+		log.Print("[INFO] pollBenchmarkJob id[%v] ", id)
 		err := sqlx.Get(
 			db,
 			&job,
@@ -281,12 +281,14 @@ func pollBenchmarkJobOld(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 }
 
 func enqueueBenchmarkJob(e echo.Context) error {
-	id, err := strconv.ParseInt(e.Param("id"), 10, 64)
-	log.Print("[INFO] enqueueBenchmarkJob id[%v] err[%v]", id, err)
-	if err != nil {
-		return e.NoContent(http.StatusBadRequest)
-	}
-	benchmarkJobIdChannel <- id
+	/*
+		id, err := strconv.ParseInt(e.Param("id"), 10, 64)
+		log.Print("[INFO] enqueueBenchmarkJob id[%v] err[%v]", id, err)
+		if err != nil {
+			return e.NoContent(http.StatusBadRequest)
+		}
+	*/
+	benchmarkJobIdChannel <- 42
 	return e.JSON(http.StatusOK, nil)
 }
 
