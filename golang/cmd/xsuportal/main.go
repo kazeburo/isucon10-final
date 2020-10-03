@@ -225,15 +225,20 @@ func (*AdminService) ListClarifications(e echo.Context) error {
 	if err != sql.ErrNoRows && err != nil {
 		return fmt.Errorf("query clarifications: %w", err)
 	}
+	teamsH := make(map[int64]xsuportal.Team, 0)
+	teamsL := make([]xsuportal.Team, 0)
+	_ = db.Select(
+		&teamsL,
+		"SELECT * FROM `teams`",
+	)
+	for _, t := range teamsL {
+		teamsH[t.ID] = t
+	}
 	res := &adminpb.ListClarificationsResponse{}
 	for _, clarification := range clarifications {
 		var team xsuportal.Team
-		err := db.Get(
-			&team,
-			"SELECT * FROM `teams` WHERE `id` = ? LIMIT 1",
-			clarification.TeamID,
-		)
-		if err != nil {
+		var ok bool
+		if team, ok = teamsH[clarification.TeamID]; !ok {
 			return fmt.Errorf("query team(id=%v, clarification=%v): %w", clarification.TeamID, clarification.ID, err)
 		}
 		c, err := makeClarificationPB(db, &clarification, &team)

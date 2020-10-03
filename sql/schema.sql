@@ -58,6 +58,7 @@ CREATE TABLE `clarifications` (
 
 ALTER TABLE `clarifications` ADD INDEX idx1 (`team_id`, `answered_at`);
 ALTER TABLE `clarifications` ADD INDEX idx2 (`disclosed`, `answered_at`);
+ALTER TABLE `clarifications` ADD INDEX idx3 (`updated_at`);
 
 DROP TABLE IF EXISTS `notifications`;
 CREATE TABLE `notifications` (
