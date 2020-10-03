@@ -310,7 +310,7 @@ func (*AdminService) RespondClarification(e echo.Context) error {
 	var clarificationBefore xsuportal.Clarification
 	err = tx.Get(
 		&clarificationBefore,
-		"SELECT * FROM `clarifications` WHERE `id` = ? LIMIT 1 FOR UPDATE",
+		"SELECT * FROM `clarifications` WHERE `id` = ? FOR UPDATE",
 		id,
 	)
 	if err == sql.ErrNoRows {
@@ -323,7 +323,7 @@ func (*AdminService) RespondClarification(e echo.Context) error {
 	wasDisclosed := clarificationBefore.Disclosed
 
 	_, err = tx.Exec(
-		"UPDATE `clarifications` SET `disclosed` = ?, `answer` = ?, `updated_at` = NOW(6), `answered_at` = NOW(6) WHERE `id` = ? LIMIT 1",
+		"UPDATE `clarifications` SET `disclosed` = ?, `answer` = ?, `updated_at` = NOW(6), `answered_at` = NOW(6) WHERE `id` = ?",
 		req.Disclose,
 		req.Answer,
 		id,
@@ -334,7 +334,7 @@ func (*AdminService) RespondClarification(e echo.Context) error {
 	var clarification xsuportal.Clarification
 	err = tx.Get(
 		&clarification,
-		"SELECT * FROM `clarifications` WHERE `id` = ? LIMIT 1",
+		"SELECT * FROM `clarifications` WHERE `id` = ?",
 		id,
 	)
 	if err != nil {
@@ -343,7 +343,7 @@ func (*AdminService) RespondClarification(e echo.Context) error {
 	var team xsuportal.Team
 	err = tx.Get(
 		&team,
-		"SELECT * FROM `teams` WHERE `id` = ? LIMIT 1",
+		"SELECT * FROM `teams` WHERE `id` = ?",
 		clarification.TeamID,
 	)
 	if err != nil {
