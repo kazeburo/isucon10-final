@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"log"
 	"io/ioutil"
 
 	"github.com/SherClockHolmes/webpush-go"
@@ -190,6 +191,7 @@ func sendNotificationByWebPush(db sqlx.Ext, contestantId string, notificationPB 
 	options := VAPIDKey()
 
 	// Send Notification
+	for i := 0; i<2; i++ {
 	resp, err := webpush.SendNotification(message,
 		&webpush.Subscription{
 			Endpoint: pushSubscription.Endpoint,
@@ -205,8 +207,10 @@ func sendNotificationByWebPush(db sqlx.Ext, contestantId string, notificationPB 
 			TTL:             30,
 		})
 	if err != nil {
-		return fmt.Errorf("webpush SendNotification: %w", err)
+		log.Printf("webpush SendNotification: %w", err)
+	//	return fmt.Errorf("webpush SendNotification: %w", err)
 	}
 	defer resp.Body.Close()
+	}
 	return nil
 }

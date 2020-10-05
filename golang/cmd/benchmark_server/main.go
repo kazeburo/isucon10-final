@@ -295,7 +295,7 @@ func main() {
 	db, _ = xsuportal.GetDB()
 	db.SetMaxOpenConns(10)
 
-	benchmarkJobIdChannel = make(chan int64, 100*2) // xsuportal.TeamCapacity
+	benchmarkJobIdChannel = make(chan int64, 300*2) // xsuportal.TeamCapacity
 	srv := echo.New()
 	srv.POST("/api/contestant/benchmark_jobs", enqueueBenchmarkJob)
 	go func() {
