@@ -56,7 +56,7 @@ func (b *benchmarkQueueService) ReceiveBenchmarkJob(ctx context.Context, req *be
 			}
 			handle := base64.StdEncoding.EncodeToString(randomBytes)
 			result, err := db.Exec(
-				"UPDATE `benchmark_jobs` SET `status` = ?, `handle` = ? WHERE `id` = ? AND `status` = ? LIMIT 1",
+				"UPDATE `benchmark_jobs` SET `status` = ?, `handle` = ? WHERE `id` = ? AND `status` = ?",
 				resources.BenchmarkJob_SENT,
 				handle,
 				job.ID,
@@ -132,7 +132,7 @@ func (b *benchmarkReportService) ReportBenchmarkResult(srv bench.BenchmarkReport
 			var job xsuportal.BenchmarkJob
 			err = tx.Get(
 				&job,
-				"SELECT * FROM `benchmark_jobs` WHERE `id` = ? AND `handle` = ? LIMIT 1 FOR UPDATE",
+				"SELECT * FROM `benchmark_jobs` WHERE `id` = ? AND `handle` = ? FOR UPDATE",
 				req.JobId,
 				req.Handle,
 			)
@@ -195,7 +195,7 @@ func (b *benchmarkReportService) saveAsFinished(db sqlx.Execer, job *xsuportal.B
 		deduction.Int32 = int32(result.ScoreBreakdown.Deduction)
 	}
 	_, err := db.Exec(
-		"UPDATE `benchmark_jobs` SET `status` = ?, `score_raw` = ?, `score_deduction` = ?, `passed` = ?, `reason` = ?, `updated_at` = NOW(6), `finished_at` = ? WHERE `id` = ? LIMIT 1",
+		"UPDATE `benchmark_jobs` SET `status` = ?, `score_raw` = ?, `score_deduction` = ?, `passed` = ?, `reason` = ?, `updated_at` = NOW(6), `finished_at` = ? WHERE `id` = ?",
 		resources.BenchmarkJob_FINISHED,
 		raw,
 		deduction,
@@ -221,7 +221,7 @@ func (b *benchmarkReportService) saveAsRunning(db sqlx.Execer, job *xsuportal.Be
 		startedAt = req.Result.MarkedAt.AsTime().Round(time.Microsecond)
 	}
 	_, err := db.Exec(
-		"UPDATE `benchmark_jobs` SET `status` = ?, `score_raw` = NULL, `score_deduction` = NULL, `passed` = FALSE, `reason` = NULL, `started_at` = ?, `updated_at` = NOW(6), `finished_at` = NULL WHERE `id` = ? LIMIT 1",
+		"UPDATE `benchmark_jobs` SET `status` = ?, `score_raw` = NULL, `score_deduction` = NULL, `passed` = FALSE, `reason` = NULL, `started_at` = ?, `updated_at` = NOW(6), `finished_at` = NULL WHERE `id` = ?",
 		resources.BenchmarkJob_RUNNING,
 		startedAt,
 		req.JobId,
@@ -239,7 +239,7 @@ func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 		err := sqlx.Get(
 			db,
 			&job,
-			"SELECT * FROM `benchmark_jobs` WHERE `status` = ? ORDER BY `id` LIMIT 1",
+			"SELECT * FROM `benchmark_jobs` WHERE `status` = ? ORDER BY RAND() LIMIT 1",
 			resources.BenchmarkJob_PENDING,
 		)
 		if err == sql.ErrNoRows {

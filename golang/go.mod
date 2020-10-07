@@ -12,6 +12,7 @@ require (
 	github.com/labstack/echo/v4 v4.1.17
 	golang.org/x/crypto v0.0.0-20200930160638-afb6bcd081ae // indirect
 	golang.org/x/net v0.0.0-20200930145003-4acb6c075d10 // indirect
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f // indirect
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.25.0
