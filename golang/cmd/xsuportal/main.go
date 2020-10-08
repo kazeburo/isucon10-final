@@ -186,6 +186,10 @@ func (*AdminService) Initialize(e echo.Context) error {
 		}
 	}
 
+	pushSubCacheLock.Lock()
+	pushSubCache = make(map[string]int)
+	pushSubCacheLock.Unlock()
+
 	passwordHash := sha256.Sum256([]byte(AdminPassword))
 	digest := hex.EncodeToString(passwordHash[:])
 	_, err := db.Exec("INSERT `contestants` (`id`, `password`, `staff`, `created_at`) VALUES (?, ?, TRUE, NOW(6))", AdminID, digest)
@@ -612,6 +616,9 @@ func (*ContestantService) Dashboard(e echo.Context) error {
 	return e.Blob(http.StatusOK, "application/vnd.google.protobuf", res.([]byte))
 }
 
+var pushSubCacheLock sync.RWMutex
+var pushSubCache map[string]int
+
 func (*ContestantService) ListNotifications(e echo.Context) error {
 	if ok, err := loginRequired(e, db, &loginRequiredOption{Team: true}); !ok {
 		return wrapError("check session", err)
@@ -620,14 +627,24 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 	contestant, _ := getCurrentContestant(e, db, false)
 
 	var c int
-	err := db.Get(
-		&c,
-		"SELECT count(*) FROM `push_subscriptions` WHERE `contestant_id` = ?",
-		contestant.ID,
-	)
-	if err != nil {
-		return fmt.Errorf("select push subscriptions: %w", err)
+	pushSubCacheLock.RLock()
+	if cc, ok := pushSubCache[contestant.ID]; ok {
+		c = cc
+		pushSubCacheLock.RUnlock()
+	} else {
+		pushSubCacheLock.RUnlock()
+		err := db.Get(
+			&c,
+			"SELECT count(*) FROM `push_subscriptions` WHERE `contestant_id` = ?",
+			contestant.ID,
+		)
+		if err != nil {
+			return fmt.Errorf("select push subscriptions: %w", err)
+		}
+		pushSubCacheLock.Lock()
+		pushSubCache[contestant.ID] = c
 	}
+
 	if c > 0 {
 		return writeProto(e, http.StatusOK, &contestantpb.ListNotificationsResponse{
 			Notifications: []*resourcespb.Notification{},
@@ -737,6 +754,11 @@ func (*ContestantService) SubscribeNotification(e echo.Context) error {
 	if err != nil {
 		return fmt.Errorf("insert push_subscription: %w", err)
 	}
+
+	pushSubCacheLock.Lock()
+	pushSubCache[contestant.ID] = 1
+	pushSubCacheLock.Unlock()
+
 	return writeProto(e, http.StatusOK, &contestantpb.SubscribeNotificationResponse{})
 }
 
@@ -763,6 +785,11 @@ func (*ContestantService) UnsubscribeNotification(e echo.Context) error {
 	if err != nil {
 		return fmt.Errorf("delete push_subscription: %w", err)
 	}
+
+	pushSubCacheLock.Lock()
+	pushSubCache[contestant.ID] = 0
+	pushSubCacheLock.Unlock()
+
 	return writeProto(e, http.StatusOK, &contestantpb.UnsubscribeNotificationResponse{})
 }
 
