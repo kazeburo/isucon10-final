@@ -52,6 +52,7 @@ const (
 )
 
 var db *sqlx.DB
+var sfGroup singleflight.Group
 
 /*
 func StaticHeader(next echo.HandlerFunc) echo.HandlerFunc {
@@ -597,7 +598,7 @@ func (*ContestantService) Dashboard(e echo.Context) error {
 		return wrapError("check session", err)
 	}
 	team, _ := getCurrentTeam(e, db, false)
-	res, err, _ := groupSF.Do(fmt.Sprintf("dashboard%d", team.ID), func() (interface{}, error) {
+	res, err, _ := sfGroup.Do(fmt.Sprintf("dashboard%d", team.ID), func() (interface{}, error) {
 		leaderboard, err := makeLeaderboardPB(team.ID)
 		if err != nil {
 			return nil, fmt.Errorf("make leaderboard: %w", err)
@@ -1230,8 +1231,6 @@ func backgroundLeaderboardPB() {
 	}
 }
 
-var groupSF singleflight.Group
-
 func (*AudienceService) Dashboard(e echo.Context) error {
 	audienceDashboardCacheLock.RLock()
 	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
@@ -1241,7 +1240,7 @@ func (*AudienceService) Dashboard(e echo.Context) error {
 		return e.Blob(http.StatusOK, "application/vnd.google.protobuf", audienceDashboardCache)
 	}
 	audienceDashboardCacheLock.RUnlock()
-	res, err, _ := groupSF.Do("dashboard", func() (interface{}, error) {
+	res, err, _ := sfGroup.Do("dashboard", func() (interface{}, error) {
 		leaderboard, err := makeLeaderboardPB(0)
 		if err != nil {
 			return nil, fmt.Errorf("make leaderboard: %w", err)
