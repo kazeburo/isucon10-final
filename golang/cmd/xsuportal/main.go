@@ -643,6 +643,7 @@ func (*ContestantService) ListNotifications(e echo.Context) error {
 		}
 		pushSubCacheLock.Lock()
 		pushSubCache[contestant.ID] = c
+		pushSubCacheLock.Unlock()
 	}
 
 	if c > 0 {
