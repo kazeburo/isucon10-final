@@ -1273,7 +1273,7 @@ func (*AudienceService) Dashboard(e echo.Context) error {
 	if lastModified != "" {
 		t, err := http.ParseTime(lastModified)
 		if err == nil {
-			if t > cs.ContestFreezesAt.Unix() {
+			if t.Unix() > cs.ContestFreezesAt.Unix() {
 				return e.NoContent(http.StatusNotModified)
 			}
 		}
