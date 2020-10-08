@@ -282,7 +282,7 @@ func (*AdminService) GetClarification(e echo.Context) error {
 	var clarification xsuportal.Clarification
 	err = db.Get(
 		&clarification,
-		"SELECT * FROM `clarifications` WHERE `id` = ? LIMIT 1",
+		"SELECT * FROM `clarifications` WHERE `id` = ?",
 		id,
 	)
 	if err != nil {
@@ -291,7 +291,7 @@ func (*AdminService) GetClarification(e echo.Context) error {
 	var team xsuportal.Team
 	err = db.Get(
 		&team,
-		"SELECT * FROM `teams` WHERE id = ? LIMIT 1",
+		"SELECT * FROM `teams` WHERE id = ?",
 		clarification.TeamID,
 	)
 	if err != nil {
@@ -517,7 +517,7 @@ func (*ContestantService) GetBenchmarkJob(e echo.Context) error {
 	var job xsuportal.BenchmarkJob
 	err = db.Get(
 		&job,
-		"SELECT * FROM `benchmark_jobs` WHERE `team_id` = ? AND `id` = ? LIMIT 1",
+		"SELECT * FROM `benchmark_jobs` WHERE `team_id` = ? AND `id` = ?",
 		team.ID,
 		id,
 	)
@@ -551,7 +551,7 @@ func (*ContestantService) ListClarifications(e echo.Context) error {
 		var team xsuportal.Team
 		err := db.Get(
 			&team,
-			"SELECT * FROM `teams` WHERE `id` = ? LIMIT 1",
+			"SELECT * FROM `teams` WHERE `id` = ?",
 			clarification.TeamID,
 		)
 		if err != nil {
@@ -589,7 +589,7 @@ func (*ContestantService) RequestClarification(e echo.Context) error {
 		return fmt.Errorf("insert clarification: %w", err)
 	}
 	var clarification xsuportal.Clarification
-	err = tx.Get(&clarification, "SELECT * FROM `clarifications` WHERE `id` = LAST_INSERT_ID() LIMIT 1")
+	err = tx.Get(&clarification, "SELECT * FROM `clarifications` WHERE `id` = LAST_INSERT_ID()")
 	if err != nil {
 		return fmt.Errorf("get clarification: %w", err)
 	}
@@ -843,7 +843,7 @@ func (*ContestantService) Login(e echo.Context) error {
 	var password string
 	err := db.Get(
 		&password,
-		"SELECT `password` FROM `contestants` WHERE `id` = ? LIMIT 1",
+		"SELECT `password` FROM `contestants` WHERE `id` = ?",
 		req.ContestantId,
 	)
 	if err != sql.ErrNoRows && err != nil {
@@ -910,7 +910,7 @@ func (*RegistrationService) GetRegistrationSession(e echo.Context) error {
 			var t xsuportal.Team
 			err = db.Get(
 				&t,
-				"SELECT * FROM `teams` WHERE `id` = ? AND `invite_token` = ? AND `withdrawn` = FALSE LIMIT 1",
+				"SELECT * FROM `teams` WHERE `id` = ? AND `invite_token` = ? AND `withdrawn` = FALSE",
 				teamID,
 				inviteToken,
 			)
@@ -1035,7 +1035,7 @@ func (*RegistrationService) CreateTeam(e echo.Context) error {
 
 	_, err = conn.ExecContext(
 		ctx,
-		"UPDATE `contestants` SET `name` = ?, `student` = ?, `team_id` = ? WHERE id = ? LIMIT 1",
+		"UPDATE `contestants` SET `name` = ?, `student` = ?, `team_id` = ? WHERE id = ?",
 		req.Name,
 		req.IsStudent,
 		teamID,
@@ -1047,7 +1047,7 @@ func (*RegistrationService) CreateTeam(e echo.Context) error {
 
 	_, err = conn.ExecContext(
 		ctx,
-		"UPDATE `teams` SET `leader_id` = ? WHERE `id` = ? LIMIT 1",
+		"UPDATE `teams` SET `leader_id` = ? WHERE `id` = ?",
 		contestant.ID,
 		teamID,
 	)
@@ -1137,7 +1137,7 @@ func (*RegistrationService) UpdateRegistration(e echo.Context) error {
 	contestant, _ := getCurrentContestant(e, tx, false)
 	if team.LeaderID.Valid && team.LeaderID.String == contestant.ID {
 		_, err := tx.Exec(
-			"UPDATE `teams` SET `name` = ?, `email_address` = ? WHERE `id` = ? LIMIT 1",
+			"UPDATE `teams` SET `name` = ?, `email_address` = ? WHERE `id` = ?",
 			req.TeamName,
 			req.EmailAddress,
 			team.ID,
@@ -1147,7 +1147,7 @@ func (*RegistrationService) UpdateRegistration(e echo.Context) error {
 		}
 	}
 	_, err = tx.Exec(
-		"UPDATE `contestants` SET `name` = ?, `student` = ? WHERE `id` = ? LIMIT 1",
+		"UPDATE `contestants` SET `name` = ?, `student` = ? WHERE `id` = ?",
 		req.Name,
 		req.IsStudent,
 		contestant.ID,
@@ -1177,7 +1177,7 @@ func (*RegistrationService) DeleteRegistration(e echo.Context) error {
 	contestant, _ := getCurrentContestant(e, tx, false)
 	if team.LeaderID.Valid && team.LeaderID.String == contestant.ID {
 		_, err := tx.Exec(
-			"UPDATE `teams` SET `withdrawn` = TRUE, `leader_id` = NULL WHERE `id` = ? LIMIT 1",
+			"UPDATE `teams` SET `withdrawn` = TRUE, `leader_id` = NULL WHERE `id` = ?",
 			team.ID,
 		)
 		if err != nil {
@@ -1192,7 +1192,7 @@ func (*RegistrationService) DeleteRegistration(e echo.Context) error {
 		}
 	} else {
 		_, err := tx.Exec(
-			"UPDATE `contestants` SET `team_id` = NULL WHERE `id` = ? LIMIT 1",
+			"UPDATE `contestants` SET `team_id` = NULL WHERE `id` = ?",
 			contestant.ID,
 		)
 		if err != nil {
@@ -1543,7 +1543,7 @@ func makeTeamPB(db sqlx.Queryer, t *xsuportal.Team, detail bool, enableMembers b
 	if enableMembers {
 		if t.LeaderID.Valid {
 			var leader xsuportal.Contestant
-			if err := sqlx.Get(db, &leader, "SELECT * FROM `contestants` WHERE `id` = ? LIMIT 1", t.LeaderID.String); err != nil {
+			if err := sqlx.Get(db, &leader, "SELECT * FROM `contestants` WHERE `id` = ?", t.LeaderID.String); err != nil {
 				return nil, fmt.Errorf("get leader: %w", err)
 			}
 			pb.Leader = makeContestantPB(&leader)
