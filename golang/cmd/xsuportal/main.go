@@ -1272,6 +1272,8 @@ func (*AudienceService) Dashboard(e echo.Context) error {
 	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
 		defer audienceDashboardCacheLock.RUnlock()
 		e.Response().Header().Set("Content-Encoding", "gzip")
+		now := time.Now().Format("Mon, 02 Jan 2006 15:04:05 MST")
+		e.Response().Header().Set("Last-Modified", now)
 		e.Response().Header().Set("Cache-Control", "max-age=1")
 		return e.Blob(http.StatusOK, "application/vnd.google.protobuf", audienceDashboardCache)
 	}
@@ -1287,7 +1289,8 @@ func (*AudienceService) Dashboard(e echo.Context) error {
 	if err != nil {
 		return err
 	}
-
+	now := time.Now().Format("Mon, 02 Jan 2006 15:04:05 MST")
+	e.Response().Header().Set("Last-Modified", now)
 	e.Response().Header().Set("Cache-Control", "max-age=1")
 	return e.Blob(http.StatusOK, "application/vnd.google.protobuf", res.([]byte))
 }
