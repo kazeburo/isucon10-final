@@ -1268,6 +1268,17 @@ func backgroundLeaderboardPB() {
 }
 
 func (*AudienceService) Dashboard(e echo.Context) error {
+	cs, _ := getCurrentContestStatus(db)
+	lastModified := e.Request().Header.Get("If-Last-Modified-Since")
+	if lastModified != "" {
+		t, err := http.ParseTime(lastModified)
+		if err == nil {
+			if t > cs.ContestFreezesAt.Unix() {
+				return e.NoContent(http.StatusNotModified)
+			}
+		}
+	}
+
 	audienceDashboardCacheLock.RLock()
 	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
 		defer audienceDashboardCacheLock.RUnlock()
