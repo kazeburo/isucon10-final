@@ -1259,7 +1259,7 @@ func backgroundLeaderboardPB() {
 			audienceDashboardCacheLock.Lock()
 			audienceDashboardCache = res
 			cs, _ := getCurrentContestStatus(db)
-			if cs.ContestFreezesAt.Unix > n.Unix {
+			if cs.ContestFreezesAt.Unix() > n.Unix() {
 				audienceDashboardCacheTime = n.UnixNano() + 700000*20
 				audienceDashboardCacheLock.Unlock()
 				break
