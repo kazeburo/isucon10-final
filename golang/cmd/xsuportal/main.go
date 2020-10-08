@@ -1378,6 +1378,7 @@ func getCurrentContestStatus(db sqlx.Queryer) (*xsuportal.ContestStatus, error) 
 		}
 		contestStatusCacheLock.Lock()
 		contestStatusCacheTime = time.Now().Unix() + 30
+		contestStatusCache = &xsuportal.ContestStatus{}
 		contestStatusCache.RegistrationOpenAt = contestStatus.RegistrationOpenAt
 		contestStatusCache.ContestStartsAt = contestStatus.ContestStartsAt
 		contestStatusCache.ContestFreezesAt = contestStatus.ContestFreezesAt
