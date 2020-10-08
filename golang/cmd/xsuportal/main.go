@@ -1258,7 +1258,14 @@ func backgroundLeaderboardPB() {
 			res = buffer.Bytes()
 			audienceDashboardCacheLock.Lock()
 			audienceDashboardCache = res
-			audienceDashboardCacheTime = n.UnixNano() + 700000
+			cs, _ := getCurrentContestStatus(db)
+			if cs.ContestFreezesAt.Unix > n.Unix {
+				audienceDashboardCacheTime = n.UnixNano() + 700000*20
+				audienceDashboardCacheLock.Unlock()
+				break
+			} else {
+				audienceDashboardCacheTime = n.UnixNano() + 700000
+			}
 			audienceDashboardCacheLock.Unlock()
 		} else {
 			log.Printf("makeLeaderboardPB %v", err)
@@ -1268,24 +1275,10 @@ func backgroundLeaderboardPB() {
 }
 
 func (*AudienceService) Dashboard(e echo.Context) error {
-	cs, _ := getCurrentContestStatus(db)
-	lastModified := e.Request().Header.Get("If-Last-Modified-Since")
-	if lastModified != "" {
-		t, err := http.ParseTime(lastModified)
-		if err == nil {
-			if t.Unix() > cs.ContestFreezesAt.Unix() {
-				return e.NoContent(http.StatusNotModified)
-			}
-		}
-	}
-
 	audienceDashboardCacheLock.RLock()
 	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
 		defer audienceDashboardCacheLock.RUnlock()
 		e.Response().Header().Set("Content-Encoding", "gzip")
-		now := time.Now().Format("Mon, 02 Jan 2006 15:04:05 MST")
-		e.Response().Header().Set("Last-Modified", now)
-		e.Response().Header().Set("Cache-Control", "max-age=1")
 		return e.Blob(http.StatusOK, "application/vnd.google.protobuf", audienceDashboardCache)
 	}
 	audienceDashboardCacheLock.RUnlock()
@@ -1300,9 +1293,6 @@ func (*AudienceService) Dashboard(e echo.Context) error {
 	if err != nil {
 		return err
 	}
-	now := time.Now().Format("Mon, 02 Jan 2006 15:04:05 MST")
-	e.Response().Header().Set("Last-Modified", now)
-	e.Response().Header().Set("Cache-Control", "max-age=1")
 	return e.Blob(http.StatusOK, "application/vnd.google.protobuf", res.([]byte))
 }
 
