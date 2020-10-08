@@ -1,10 +1,9 @@
 package main
 
 import (
-	"log"
-	// "bytes"
+	"bytes"
+	"compress/gzip"
 	"context"
-	// "compress/gzip"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -13,6 +12,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -490,13 +490,19 @@ func (*ContestantService) ListBenchmarkJobs(e echo.Context) error {
 	if ok, err := loginRequired(e, db, &loginRequiredOption{Team: true}); !ok {
 		return wrapError("check session", err)
 	}
-	jobs, err := makeBenchmarkJobsPB(e, db, 0)
-	if err != nil {
-		return fmt.Errorf("make benchmark jobs: %w", err)
-	}
-	return writeProto(e, http.StatusOK, &contestantpb.ListBenchmarkJobsResponse{
-		Jobs: jobs,
+	team, _ := getCurrentTeam(e, db, false)
+	res, err, _ := sfGroup.Do(fmt.Sprintf("listbench%d", team.ID), func() (interface{}, error) {
+		job, err := makeBenchmarkJobsPB(e, db, 0)
+		if err != nil {
+			return nil, fmt.Errorf("make benchmark jobs: %w", err)
+		}
+		r := &contestantpb.ListBenchmarkJobsResponse{Jobs: job}
+		return proto.Marshal(r)
 	})
+	if err != nil {
+		return err
+	}
+	return e.Blob(http.StatusOK, "application/vnd.google.protobuf", res.([]byte))
 }
 
 func (*ContestantService) GetBenchmarkJob(e echo.Context) error {
@@ -1245,11 +1251,11 @@ func backgroundLeaderboardPB() {
 		if err == nil {
 			r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
 			res, _ := proto.Marshal(r)
-			/* var buffer bytes.Buffer
-			   ww := gzip.NewWriter(&buffer)
-			   ww.Write(res)
-			   ww.Close()
-			   res = buffer.Bytes() */
+			var buffer bytes.Buffer
+			ww := gzip.NewWriter(&buffer)
+			ww.Write(res)
+			ww.Close()
+			res = buffer.Bytes()
 			audienceDashboardCacheLock.Lock()
 			audienceDashboardCache = res
 			audienceDashboardCacheTime = n.UnixNano() + 700000
@@ -1265,7 +1271,7 @@ func (*AudienceService) Dashboard(e echo.Context) error {
 	audienceDashboardCacheLock.RLock()
 	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
 		defer audienceDashboardCacheLock.RUnlock()
-		//e.Response().Header().Set("Content-Encoding", "gzip")
+		e.Response().Header().Set("Content-Encoding", "gzip")
 		e.Response().Header().Set("max-age", "1")
 		return e.Blob(http.StatusOK, "application/vnd.google.protobuf", audienceDashboardCache)
 	}
