@@ -215,6 +215,8 @@ func (*AdminService) Initialize(e echo.Context) error {
 		}
 	}
 
+	contestStatusCache = nil
+
 	host := util.GetEnv("BENCHMARK_SERVER_HOST", "localhost")
 	port, _ := strconv.Atoi(util.GetEnv("BENCHMARK_SERVER_PORT", "50051"))
 	res := &adminpb.InitializeResponse{
@@ -1353,12 +1355,69 @@ func getCurrentTeam(e echo.Context, db sqlx.Queryer, lock bool) (*xsuportal.Team
 	return xc.Team, nil
 }
 
+var contestStatusCacheLock sync.RWMutex
+var contestStatusCacheTime int64
+var contestStatusCache *xsuportal.ContestStatus
+
 func getCurrentContestStatus(db sqlx.Queryer) (*xsuportal.ContestStatus, error) {
 	var contestStatus xsuportal.ContestStatus
-	err := sqlx.Get(db, &contestStatus, "SELECT *, NOW(6) AS `current_time`, CASE WHEN NOW(6) < `registration_open_at` THEN 'standby' WHEN `registration_open_at` <= NOW(6) AND NOW(6) < `contest_starts_at` THEN 'registration' WHEN `contest_starts_at` <= NOW(6) AND NOW(6) < `contest_ends_at` THEN 'started' WHEN `contest_ends_at` <= NOW(6) THEN 'finished' ELSE 'unknown' END AS `status`, IF(`contest_starts_at` <= NOW(6) AND NOW(6) < `contest_freezes_at`, 1, 0) AS `frozen` FROM `contest_config`")
-	if err != nil {
-		return nil, fmt.Errorf("query contest status: %w", err)
+
+	contestStatusCacheLock.RLock()
+	if contestStatusCache != nil && contestStatusCacheTime > time.Now().Unix() {
+		// cache
+		contestStatus.RegistrationOpenAt = contestStatusCache.RegistrationOpenAt
+		contestStatus.ContestStartsAt = contestStatusCache.ContestStartsAt
+		contestStatus.ContestFreezesAt = contestStatusCache.ContestFreezesAt
+		contestStatus.ContestEndsAt = contestStatusCache.ContestEndsAt
+		contestStatusCacheLock.RUnlock()
+	} else {
+		err := sqlx.Get(db, &contestStatus, "SELECT *, NOW(6) AS `current_time`, CASE WHEN NOW(6) < `registration_open_at` THEN 'standby' WHEN `registration_open_at` <= NOW(6) AND NOW(6) < `contest_starts_at` THEN 'registration' WHEN `contest_starts_at` <= NOW(6) AND NOW(6) < `contest_ends_at` THEN 'started' WHEN `contest_ends_at` <= NOW(6) THEN 'finished' ELSE 'unknown' END AS `status`, IF(`contest_starts_at` <= NOW(6) AND NOW(6) < `contest_freezes_at`, 1, 0) AS `frozen` FROM `contest_config`")
+		if err != nil {
+			return nil, fmt.Errorf("query contest status: %w", err)
+		}
+		contestStatusCacheLock.Lock()
+		contestStatusCacheTime = time.Now().Unix() + 30
+		contestStatusCache.RegistrationOpenAt = contestStatus.RegistrationOpenAt
+		contestStatusCache.ContestStartsAt = contestStatus.ContestStartsAt
+		contestStatusCache.ContestFreezesAt = contestStatus.ContestFreezesAt
+		contestStatusCache.ContestEndsAt = contestStatus.ContestEndsAt
+		contestStatusCacheLock.Unlock()
 	}
+
+	now := time.Now()
+	unixnow := now.Unix()
+	contestStatus.CurrentTime = now
+
+	/*
+	   CASE
+	   WHEN NOW(6) < `registration_open_at` THEN 'standby'
+	   WHEN `registration_open_at` <= NOW(6) AND NOW(6) < `contest_starts_at` THEN 'registration'
+	   WHEN `contest_starts_at` <= NOW(6) AND NOW(6) < `contest_ends_at` THEN 'started'
+	   WHEN `contest_ends_at` <= NOW(6) THEN 'finished'
+	   ELSE 'unknown' END AS `status`,
+	*/
+
+	contestStatus.CurrentTime = now
+	if unixnow < contestStatus.RegistrationOpenAt.Unix() {
+		contestStatus.StatusStr = "standby"
+	} else if contestStatus.RegistrationOpenAt.Unix() <= unixnow && unixnow < contestStatus.ContestStartsAt.Unix() {
+		contestStatus.StatusStr = "registration"
+	} else if contestStatus.ContestStartsAt.Unix() <= unixnow && unixnow < contestStatus.ContestEndsAt.Unix() {
+		contestStatus.StatusStr = "started"
+	} else if contestStatus.ContestEndsAt.Unix() <= unixnow {
+		contestStatus.StatusStr = "finished"
+	} else {
+		contestStatus.StatusStr = "status"
+	}
+	/*
+	   IF(`contest_starts_at` <= NOW(6) AND NOW(6) < `contest_freezes_at`, 1, 0) AS `frozen`
+	*/
+	if contestStatus.ContestStartsAt.Unix() <= unixnow && unixnow < contestStatus.ContestFreezesAt.Unix() {
+		contestStatus.Frozen = true
+	} else {
+		contestStatus.Frozen = false
+	}
+
 	statusStr := contestStatus.StatusStr
 	/*if e.Echo().Debug {
 		b, err := ioutil.ReadFile(DebugContestStatusFilePath)
