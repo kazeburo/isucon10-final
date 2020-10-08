@@ -1246,8 +1246,8 @@ var audienceDashboardCache []byte
 
 func backgroundLeaderboardPB() {
 	for {
-		n := time.Now()
 		leaderboard, err := makeLeaderboardPB(0)
+		n := time.Now()
 		if err == nil {
 			r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
 			res, _ := proto.Marshal(r)
