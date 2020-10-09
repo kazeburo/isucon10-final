@@ -1315,7 +1315,7 @@ func backgroundLeaderboardPB() {
 
 func (*AudienceService) Dashboard(e echo.Context) error {
 	audienceDashboardCacheLock.RLock()
-	if audienceDashboardCache != nil && audienceDashboardCacheTime < time.Now().UnixNano() {
+	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
 		defer audienceDashboardCacheLock.RUnlock()
 		e.Response().Header().Set("Content-Encoding", "gzip")
 		return e.Blob(http.StatusOK, "application/vnd.google.protobuf", audienceDashboardCache)
