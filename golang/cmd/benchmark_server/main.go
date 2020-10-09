@@ -239,7 +239,7 @@ func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.Benc
 		return fmt.Errorf("update benchmark job status: %w", err)
 	}
 
-	if contestFreezesAt.Unix() > markedAt.Unix() {
+	if contestFreezesAt.Unix() < markedAt.Unix() {
 		_, err = db.Exec("UPDATE `team_scores`"+
 			"SET "+
 			"`fz_best_score` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_score`), "+
