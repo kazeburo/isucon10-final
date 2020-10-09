@@ -1301,7 +1301,7 @@ func backgroundLeaderboardPB() {
 			audienceDashboardCache = res
 			cs, _ := getCurrentContestStatus(db)
 			if cs.ContestFreezesAt.Unix() > n.Unix() {
-				audienceDashboardCacheTime = n.UnixNano() + 700000*20
+				audienceDashboardCacheTime = n.UnixNano() + 700000
 			} else {
 				audienceDashboardCacheTime = n.UnixNano() + 700000
 			}
