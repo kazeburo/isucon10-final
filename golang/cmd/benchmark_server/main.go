@@ -218,7 +218,7 @@ func (b *benchmarkReportService) saveAsFinished(db sqlx.Execer, job *xsuportal.B
 		"`latest_score` = ?, "+
 		"`latest_started_at` = ?, "+
 		"`latest_finished_at` = ?, "+
-		"`finish_count` = `finish_count` + 1 "+
+		"`finish_count` = IFNULL(`finish_count`,0) + 1 "+
 		"WHERE `team_id` = ?",
 		full, full,
 		full, markedAt,
