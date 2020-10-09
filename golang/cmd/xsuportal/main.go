@@ -1057,7 +1057,8 @@ func (*RegistrationService) CreateTeam(e echo.Context) error {
 
 	_, err = conn.ExecContext(
 		ctx,
-		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` GROUP BY `contestants`.`team_id`) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
+		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
+		teamID,
 		teamID,
 	)
 	if err != nil {
@@ -1176,7 +1177,9 @@ func (*RegistrationService) UpdateRegistration(e echo.Context) error {
 	}
 
 	_, err = tx.Exec(
-		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` GROUP BY `contestants`.`team_id`) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student`",
+		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
+		team.ID,
+		team.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update team: %w", err)
@@ -1284,7 +1287,7 @@ func backgroundLeaderboardPB() {
 		start := time.Now()
 		leaderboard, err := makeLeaderboardPB(0)
 		end := time.Now()
-		log.Printf("%f秒\n", (end.Sub(start)).Nanoseconds())
+		log.Printf("%f秒\n", (end.Sub(start)).Seconds())
 		n := time.Now()
 		if err == nil {
 			r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
