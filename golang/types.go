@@ -24,7 +24,8 @@ type Team struct {
 	EmailAddress string         `db:"email_address"`
 	InviteToken  string         `db:"invite_token"`
 	Withdrawn    bool           `db:"withdrawn"`
-	Student      sql.NullBool   `db:"student"`
+	Student      sql.NullBool   `db:"_"`
+	StudentFlag  sql.NullBool   `db:"student_flag"`
 	CreatedAt    time.Time      `db:"created_at"`
 }
 

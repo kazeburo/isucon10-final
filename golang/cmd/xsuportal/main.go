@@ -1057,7 +1057,7 @@ func (*RegistrationService) CreateTeam(e echo.Context) error {
 
 	_, err = conn.ExecContext(
 		ctx,
-		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
+		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student_flag` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
 		teamID,
 		teamID,
 	)
@@ -1126,7 +1126,7 @@ func (*RegistrationService) JoinTeam(e echo.Context) error {
 	}
 
 	_, err = tx.Exec(
-		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
+		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student_flag` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
 		req.TeamId,
 		req.TeamId,
 	)
@@ -1177,7 +1177,7 @@ func (*RegistrationService) UpdateRegistration(e echo.Context) error {
 	}
 
 	_, err = tx.Exec(
-		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
+		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student_flag` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
 		team.ID,
 		team.ID,
 	)
@@ -1654,7 +1654,7 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 		"  `teams`.`name` AS `name`,\n" +
 		"  `teams`.`leader_id` AS `leader_id`,\n" +
 		"  `teams`.`withdrawn` AS `withdrawn`,\n" +
-		"  `teams`.`student` AS `student`,\n" +
+		"  `teams`.`student_flag` AS `student`,\n" +
 		"  (`best_score_jobs`.`score_raw` - `best_score_jobs`.`score_deduction`) AS `best_score`,\n" +
 		"  `best_score_jobs`.`started_at` AS `best_score_started_at`,\n" +
 		"  `best_score_jobs`.`finished_at` AS `best_score_marked_at`,\n" +

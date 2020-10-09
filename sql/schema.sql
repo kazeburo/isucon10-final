@@ -23,7 +23,7 @@ CREATE TABLE `teams` (
   UNIQUE KEY (`leader_id`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4;
 
-ALTER TABLE teams ADD student TINYINT NOT NULL DEFAULT 0 AFTER withdrawn;
+ALTER TABLE teams ADD student_flag TINYINT NOT NULL DEFAULT 0 AFTER withdrawn;
 
 DROP TABLE IF EXISTS `benchmark_jobs`;
 CREATE TABLE `benchmark_jobs` (
