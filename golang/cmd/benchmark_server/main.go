@@ -188,12 +188,14 @@ func (b *benchmarkReportService) saveAsFinished(db sqlx.Execer, job *xsuportal.B
 	markedAt := req.Result.MarkedAt.AsTime().Round(time.Microsecond)
 
 	result := req.Result
-	var raw, deduction sql.NullInt32
+	var raw, deduction, full sql.NullInt32
 	if result.ScoreBreakdown != nil {
 		raw.Valid = true
 		raw.Int32 = int32(result.ScoreBreakdown.Raw)
 		deduction.Valid = true
 		deduction.Int32 = int32(result.ScoreBreakdown.Deduction)
+		full.Valid = true
+		full.Int32 = int32(result.ScoreBreakdown.Raw) - int32(result.ScoreBreakdown.Deduction)
 	}
 	_, err := db.Exec(
 		"UPDATE `benchmark_jobs` SET `status` = ?, `score_raw` = ?, `score_deduction` = ?, `passed` = ?, `reason` = ?, `updated_at` = NOW(6), `finished_at` = ? WHERE `id` = ?",
@@ -208,6 +210,28 @@ func (b *benchmarkReportService) saveAsFinished(db sqlx.Execer, job *xsuportal.B
 	if err != nil {
 		return fmt.Errorf("update benchmark job status: %w", err)
 	}
+	_, err = db.Exec("UPDATE `team_scores`"+
+		"SET "+
+		"`best_score` = IF(? > `best_score`,?,`best_score`), "+
+		"`best_started_at` = IF(? > `best_score`,?,`best_started_at`), "+
+		"`best_finished_at` = IF(? > `best_score`,?,`best_finished_at`), "+
+		"`latest_score` = ?, "+
+		"`latest_started_at` = ?, "+
+		"`latest_finished_at` = ? "+
+		"`finish_count` = `finish_count` + 1 "+
+		"WHERE team_id = ?",
+		full, full,
+		full, markedAt,
+		full, job.StartedAt,
+		full,
+		markedAt,
+		job.StartedAt,
+		job.TeamID,
+	)
+	if err != nil {
+		return fmt.Errorf("update benchmark job status: %w", err)
+	}
+
 	return nil
 }
 

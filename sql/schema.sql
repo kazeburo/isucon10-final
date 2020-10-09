@@ -100,14 +100,12 @@ CREATE TABLE `contest_config` (
 DROP TABLE IF EXISTS `team_scores`;
 CREATE TABLE `team_scores` (
   `team_id` BIGINT NOT NULL PRIMARY KEY,
-  `benchmark_id` BIGINT,
   `best_score` INT,
   `best_started_at` DATETIME(6),
   `best_finished_at` DATETIME(6),
-  `latest_benchmark_id` BIGINT,
   `latest_score` INT,
   `latest_started_at` DATETIME(6),
   `latest_finished_at` DATETIME(6),
-  `finish_count` INT,
+  `finish_count` INT
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4;
 

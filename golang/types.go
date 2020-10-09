@@ -118,3 +118,14 @@ func (t *LeaderBoardTeam) Team() *Team {
 		Student:   t.Student,
 	}
 }
+
+type TeamScore struct {
+	TeamID           int64         `db:"id"`
+	BestScore        sql.NullInt32 `db:"best_score"`
+	BestStartedAt    sql.NullTime  `db:"best_started_at"`
+	BestFinishedAt   sql.NullTime  `db:"best_finished_at"`
+	LatestScore      sql.NullInt32 `db:"latest_score"`
+	LatestStartedAt  sql.NullTime  `db:"latest_started_at"`
+	LatestFinishedAt sql.NullTime  `db:"latest_finished_at"`
+	FinishCount      sql.NullInt32 `db:"finish_count"`
+}
