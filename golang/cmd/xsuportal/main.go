@@ -1033,7 +1033,7 @@ func (*RegistrationService) CreateTeam(e echo.Context) error {
 
 	_, err = conn.ExecContext(
 		ctx,
-		"INSERT INTO `team_scores` (`id`) VALUES (?)",
+		"INSERT INTO `team_scores` (`team_id`) VALUES (?)",
 		teamID,
 	)
 	if err != nil {
