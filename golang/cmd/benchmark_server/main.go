@@ -188,8 +188,8 @@ func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.Benc
 	}
 	markedAt := req.Result.MarkedAt.AsTime().Round(time.Microsecond)
 
-	var frozen bool
-	err := db.Get(&frozen, "SELECT IF(`contest_starts_at` <= NOW(6) AND NOW(6) < `contest_freezes_at`, 1, 0) AS `frozen` FROM `contest_config`")
+	var contestFreezesAt time.Time
+	err := db.Get(&contestFreezesAt, "SELECT `contest_freezes_at` FROM `contest_config`")
 	if err != nil {
 		return fmt.Errorf("query contest status: %w", err)
 	}
@@ -239,7 +239,7 @@ func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.Benc
 		return fmt.Errorf("update benchmark job status: %w", err)
 	}
 
-	if !frozen {
+	if contestFreezesAt.Unix() > markedAt.Unix() {
 		_, err = db.Exec("UPDATE `team_scores`"+
 			"SET "+
 			"`fz_best_score` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_score`), "+
