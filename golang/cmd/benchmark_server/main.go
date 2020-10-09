@@ -212,9 +212,9 @@ func (b *benchmarkReportService) saveAsFinished(db sqlx.Execer, job *xsuportal.B
 	}
 	_, err = db.Exec("UPDATE `team_scores`"+
 		"SET "+
-		"`best_score` = IF(? > `best_score`,?,`best_score`), "+
-		"`best_started_at` = IF(? > `best_score`,?,`best_started_at`), "+
-		"`best_finished_at` = IF(? > `best_score`,?,`best_finished_at`), "+
+		"`best_score` = IF(? >= `best_score`,?,`best_score`), "+
+		"`best_started_at` = IF(? >= `best_score`,?,`best_started_at`), "+
+		"`best_finished_at` = IF(? >= `best_score`,?,`best_finished_at`), "+
 		"`latest_score` = ?, "+
 		"`latest_started_at` = ?, "+
 		"`latest_finished_at` = ?, "+
@@ -224,8 +224,8 @@ func (b *benchmarkReportService) saveAsFinished(db sqlx.Execer, job *xsuportal.B
 		full, markedAt,
 		full, job.StartedAt,
 		full,
-		markedAt,
 		job.StartedAt,
+		markedAt,
 		job.TeamID,
 	)
 	if err != nil {
