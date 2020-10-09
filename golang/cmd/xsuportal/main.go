@@ -1055,6 +1055,15 @@ func (*RegistrationService) CreateTeam(e echo.Context) error {
 		return fmt.Errorf("update team: %w", err)
 	}
 
+	_, err = conn.ExecContext(
+		ctx,
+		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` GROUP BY `contestants`.`team_id`) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
+		teamID,
+	)
+	if err != nil {
+		return fmt.Errorf("update team: %w", err)
+	}
+
 	return writeProto(e, http.StatusOK, &registrationpb.CreateTeamResponse{
 		TeamId: teamID,
 	})
@@ -1114,6 +1123,15 @@ func (*RegistrationService) JoinTeam(e echo.Context) error {
 	if err != nil {
 		return fmt.Errorf("update contestant: %w", err)
 	}
+
+	_, err = tx.Exec(
+		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` GROUP BY `contestants`.`team_id`) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
+		req.TeamId,
+	)
+	if err != nil {
+		return fmt.Errorf("update team: %w", err)
+	}
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit tx: %w", err)
 	}
@@ -1155,6 +1173,14 @@ func (*RegistrationService) UpdateRegistration(e echo.Context) error {
 	if err != nil {
 		return fmt.Errorf("update contestant: %w", err)
 	}
+
+	_, err = tx.Exec(
+		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` GROUP BY `contestants`.`team_id`) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student`",
+	)
+	if err != nil {
+		return fmt.Errorf("update team: %w", err)
+	}
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit tx: %w", err)
 	}
@@ -1199,6 +1225,14 @@ func (*RegistrationService) DeleteRegistration(e echo.Context) error {
 			return fmt.Errorf("withdrawn contestant(id=%v): %w", contestant.ID, err)
 		}
 	}
+
+	_, err = tx.Exec(
+		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` GROUP BY `contestants`.`team_id`) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student`",
+	)
+	if err != nil {
+		return fmt.Errorf("update team: %w", err)
+	}
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit tx: %w", err)
 	}
@@ -1246,7 +1280,10 @@ var audienceDashboardCache []byte
 
 func backgroundLeaderboardPB() {
 	for {
+		start := time.Now()
 		leaderboard, err := makeLeaderboardPB(0)
+		end := time.Now()
+		log.Printf("%f秒\n", (end.Sub(start)).Nanoseconds())
 		n := time.Now()
 		if err == nil {
 			r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
@@ -1261,8 +1298,6 @@ func backgroundLeaderboardPB() {
 			cs, _ := getCurrentContestStatus(db)
 			if cs.ContestFreezesAt.Unix() > n.Unix() {
 				audienceDashboardCacheTime = n.UnixNano() + 700000*20
-				audienceDashboardCacheLock.Unlock()
-				break
 			} else {
 				audienceDashboardCacheTime = n.UnixNano() + 700000
 			}
@@ -1276,7 +1311,7 @@ func backgroundLeaderboardPB() {
 
 func (*AudienceService) Dashboard(e echo.Context) error {
 	audienceDashboardCacheLock.RLock()
-	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
+	if audienceDashboardCache != nil && audienceDashboardCacheTime < time.Now().UnixNano() {
 		defer audienceDashboardCacheLock.RUnlock()
 		e.Response().Header().Set("Content-Encoding", "gzip")
 		return e.Blob(http.StatusOK, "application/vnd.google.protobuf", audienceDashboardCache)
@@ -1615,7 +1650,7 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 		"  `teams`.`name` AS `name`,\n" +
 		"  `teams`.`leader_id` AS `leader_id`,\n" +
 		"  `teams`.`withdrawn` AS `withdrawn`,\n" +
-		"  `team_student_flags`.`student` AS `student`,\n" +
+		"  `teams`.`student` AS `student`,\n" +
 		"  (`best_score_jobs`.`score_raw` - `best_score_jobs`.`score_deduction`) AS `best_score`,\n" +
 		"  `best_score_jobs`.`started_at` AS `best_score_started_at`,\n" +
 		"  `best_score_jobs`.`finished_at` AS `best_score_marked_at`,\n" +
@@ -1666,16 +1701,6 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 		"      `j`.`team_id`\n" +
 		"  ) `best_score_job_ids` ON `best_score_job_ids`.`team_id` = `teams`.`id`\n" +
 		"  LEFT JOIN `benchmark_jobs` `best_score_jobs` ON `best_score_jobs`.`id` = `best_score_job_ids`.`id`\n" +
-		"  -- check student teams\n" +
-		"  LEFT JOIN (\n" +
-		"    SELECT\n" +
-		"      `team_id`,\n" +
-		"      (SUM(`student`) = COUNT(*)) AS `student`\n" +
-		"    FROM\n" +
-		"      `contestants`\n" +
-		"    GROUP BY\n" +
-		"      `contestants`.`team_id`\n" +
-		"  ) `team_student_flags` ON `team_student_flags`.`team_id` = `teams`.`id`\n" +
 		"ORDER BY\n" +
 		"  `latest_score` DESC,\n" +
 		"  `latest_score_marked_at` ASC,\n" +

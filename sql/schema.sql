@@ -23,6 +23,8 @@ CREATE TABLE `teams` (
   UNIQUE KEY (`leader_id`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4;
 
+ALTER TABLE teams ADD student TINYINT NOT NULL DEFAULT 0 AFTER withdrawn;
+
 DROP TABLE IF EXISTS `benchmark_jobs`;
 CREATE TABLE `benchmark_jobs` (
   `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -93,3 +95,19 @@ CREATE TABLE `contest_config` (
   `contest_freezes_at` DATETIME(6) NOT NULL,
   `contest_ends_at` DATETIME(6) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
+
+
+DROP TABLE IF EXISTS `team_scores`;
+CREATE TABLE `team_scores` (
+  `team_id` BIGINT NOT NULL PRIMARY KEY,
+  `benchmark_id` BIGINT,
+  `best_score` INT,
+  `best_started_at` DATETIME(6),
+  `best_finished_at` DATETIME(6),
+  `latest_benchmark_id` BIGINT,
+  `latest_score` INT,
+  `latest_started_at` DATETIME(6),
+  `latest_finished_at` DATETIME(6),
+  `finish_count` INT,
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4;
+
