@@ -1293,34 +1293,33 @@ var audienceDashboardCacheTime int64
 var audienceDashboardCache []byte
 
 func backgroundLeaderboardPB() {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
 	for {
-		start := time.Now()
-		leaderboard, err := makeLeaderboardPB(0)
-		end := time.Now()
-		log.Printf("%f秒\n", (end.Sub(start)).Seconds())
-		n := time.Now()
-		if err == nil {
-			r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
-			res, _ := proto.Marshal(r)
-			var buffer bytes.Buffer
-			ww := gzip.NewWriter(&buffer)
-			ww.Write(res)
-			ww.Close()
-			res = buffer.Bytes()
-			audienceDashboardCacheLock.Lock()
-			audienceDashboardCache = res
-			cs, _ := getCurrentContestStatus(db)
-			contestFinished := cs.Status == resourcespb.Contest_FINISHED
-			if cs.ContestFreezesAt.Unix() > n.Unix() && !contestFinished {
-				audienceDashboardCacheTime = n.UnixNano() + 7000000
-			} else {
+		select {
+		case <-ticker.C:
+			start := time.Now()
+			leaderboard, err := makeLeaderboardPB(0)
+			end := time.Now()
+			log.Printf("%f秒\n", (end.Sub(start)).Seconds())
+			n := time.Now()
+			if err == nil {
+				r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
+				res, _ := proto.Marshal(r)
+				var buffer bytes.Buffer
+				ww := gzip.NewWriter(&buffer)
+				ww.Write(res)
+				ww.Close()
+				res = buffer.Bytes()
+				audienceDashboardCacheLock.Lock()
+				audienceDashboardCache = res
 				audienceDashboardCacheTime = n.UnixNano() + 700000
+				audienceDashboardCacheLock.Unlock()
+			} else {
+				log.Printf("makeLeaderboardPB %v", err)
 			}
-			audienceDashboardCacheLock.Unlock()
-		} else {
-			log.Printf("makeLeaderboardPB %v", err)
+
 		}
-		time.Sleep(500 * time.Millisecond)
 	}
 }
 
