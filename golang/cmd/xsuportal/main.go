@@ -1726,10 +1726,10 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 	} else {
 		query := "SELECT " +
 			"`teams`.`id` AS `id`, " +
-			"`teams.`name` AS `name`, " +
+			"`teams`.`name` AS `name`, " +
 			"`teams`.`leader_id` AS `leader_id`, " +
 			"`teams`.`withdrawn` AS `withdrawn`, " +
-			"`teams`.`student` AS `student`, " +
+			"`teams`.`student_flag` AS `student`, " +
 			"`ts`.`best_score` AS `best_score`, " +
 			"`ts`.`best_started_at` AS `best_score_started_at`, " +
 			"`ts`.`best_finished_at` AS `best_score_marked_at`, " +
