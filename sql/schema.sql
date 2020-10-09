@@ -106,6 +106,13 @@ CREATE TABLE `team_scores` (
   `latest_score` INT,
   `latest_started_at` DATETIME(6),
   `latest_finished_at` DATETIME(6),
-  `finish_count` INT
+  `finish_count` INT,
+  `fz_best_score` INT,
+  `fz_best_started_at` DATETIME(6),
+  `fz_best_finished_at` DATETIME(6),
+  `fz_latest_score` INT,
+  `fz_latest_started_at` DATETIME(6),
+  `fz_latest_finished_at` DATETIME(6),
+  `fz_finish_count` INT
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4;
 
