@@ -1303,6 +1303,13 @@ func backgroundLeaderboardPB() {
 			end := time.Now()
 			log.Printf("%f秒\n", (end.Sub(start)).Seconds())
 			n := time.Now()
+			contestStatus, err := getCurrentContestStatus(db)
+			if err != nil {
+				continue
+			}
+			contestFinished := contestStatus.Status == resourcespb.Contest_FINISHED
+			contestFreezesAt := contestStatus.ContestFreezesAt
+
 			if err == nil {
 				r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
 				res, _ := proto.Marshal(r)
@@ -1313,7 +1320,11 @@ func backgroundLeaderboardPB() {
 				res = buffer.Bytes()
 				audienceDashboardCacheLock.Lock()
 				audienceDashboardCache = res
-				audienceDashboardCacheTime = n.UnixNano() + 800000000
+				if contestFreezesAt.Before(n) && !contestFinished {
+					audienceDashboardCacheTime = contestStatus.ContestEndsAt.UnixNano() // n.UnixNano() + 800000000
+				} else {
+					audienceDashboardCacheTime = n.UnixNano() + 800000000
+				}
 				audienceDashboardCacheLock.Unlock()
 			} else {
 				log.Printf("makeLeaderboardPB %v", err)
