@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -27,7 +28,7 @@ import (
 
 var db *sqlx.DB
 
-var benchmarkJobIdChannel chan (int64)
+var benchmarkJobIdChannel chan (int)
 
 type benchmarkQueueService struct {
 }
@@ -259,13 +260,14 @@ func (b *benchmarkReportService) saveAsRunning(db sqlx.Execer, job *xsuportal.Be
 
 func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 	select {
-	case _ = <-benchmarkJobIdChannel:
+	case id := <-benchmarkJobIdChannel:
 		var job xsuportal.BenchmarkJob
 		err := sqlx.Get(
 			db,
 			&job,
-			"SELECT * FROM `benchmark_jobs` WHERE `status` = ? ORDER BY RAND() LIMIT 1",
+			"SELECT * FROM `benchmark_jobs` WHERE `status` = ? AND `id` = ?",
 			resources.BenchmarkJob_PENDING,
+			id,
 		)
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -303,7 +305,11 @@ func pollBenchmarkJobOld(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 }
 
 func enqueueBenchmarkJob(e echo.Context) error {
-	benchmarkJobIdChannel <- 42
+	id, err := strconv.Atoi(e.Param("id"))
+	if err != nil {
+		return fmt.Errorf("parse id: %w", err)
+	}
+	benchmarkJobIdChannel <- id
 	return e.JSON(http.StatusOK, nil)
 }
 
@@ -320,9 +326,9 @@ func main() {
 	db, _ = xsuportal.GetDB()
 	db.SetMaxOpenConns(10)
 
-	benchmarkJobIdChannel = make(chan int64, 300*2) // xsuportal.TeamCapacity
+	benchmarkJobIdChannel = make(chan int, 300*2) // xsuportal.TeamCapacity
 	srv := echo.New()
-	srv.POST("/api/contestant/benchmark_jobs", enqueueBenchmarkJob)
+	srv.POST("/api/contestant/benchmark_jobs/:id", enqueueBenchmarkJob)
 	go func() {
 		srv.Start(":60051")
 	}()

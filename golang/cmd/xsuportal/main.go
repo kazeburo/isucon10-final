@@ -474,13 +474,13 @@ func (*ContestantService) EnqueueBenchmarkJob(e echo.Context) error {
 	j := makeBenchmarkJobPB(&job)
 
 	//
-	url_target := "http://localhost:60051/api/contestant/benchmark_jobs"
+	url_target := fmt.Sprintf("http://localhost:60051/api/contestant/benchmark_jobs/%d", job.ID)
 	args := url.Values{}
 	res, err := http.PostForm(url_target, args)
-	defer res.Body.Close()
 	if err != nil {
 		return fmt.Errorf("pass job id to benchmark: %w", err)
 	}
+	defer res.Body.Close()
 	//
 	return writeProto(e, http.StatusOK, &contestantpb.EnqueueBenchmarkJobResponse{
 		Job: j,
@@ -1313,7 +1313,7 @@ func backgroundLeaderboardPB() {
 				res = buffer.Bytes()
 				audienceDashboardCacheLock.Lock()
 				audienceDashboardCache = res
-				audienceDashboardCacheTime = n.UnixNano() + 700000
+				audienceDashboardCacheTime = n.UnixNano() + 800000000
 				audienceDashboardCacheLock.Unlock()
 			} else {
 				log.Printf("makeLeaderboardPB %v", err)
