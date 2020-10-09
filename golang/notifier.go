@@ -7,8 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"io/ioutil"
+	"log"
 
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/golang/protobuf/proto"
@@ -191,26 +191,27 @@ func sendNotificationByWebPush(db sqlx.Ext, contestantId string, notificationPB 
 	options := VAPIDKey()
 
 	// Send Notification
-	for i := 0; i<2; i++ {
-	resp, err := webpush.SendNotification(message,
-		&webpush.Subscription{
-			Endpoint: pushSubscription.Endpoint,
-			Keys: webpush.Keys{
-				Auth:   pushSubscription.Auth,
-				P256dh: pushSubscription.P256DH,
+	for i := 0; i < 2; i++ {
+		resp, err := webpush.SendNotification(message,
+			&webpush.Subscription{
+				Endpoint: pushSubscription.Endpoint,
+				Keys: webpush.Keys{
+					Auth:   pushSubscription.Auth,
+					P256dh: pushSubscription.P256DH,
+				},
 			},
-		},
-		&webpush.Options{
-			Subscriber:      options.Subscriber,
-			VAPIDPublicKey:  options.VAPIDPublicKey,
-			VAPIDPrivateKey: options.VAPIDPrivateKey,
-			TTL:             30,
-		})
-	if err != nil {
-		log.Printf("webpush SendNotification: %w", err)
-	//	return fmt.Errorf("webpush SendNotification: %w", err)
-	}
-	defer resp.Body.Close()
+			&webpush.Options{
+				Subscriber:      options.Subscriber,
+				VAPIDPublicKey:  options.VAPIDPublicKey,
+				VAPIDPrivateKey: options.VAPIDPrivateKey,
+				TTL:             30,
+			})
+		if err != nil {
+			log.Printf("webpush SendNotification: %w", err)
+			continue
+			//	return fmt.Errorf("webpush SendNotification: %w", err)
+		}
+		defer resp.Body.Close()
 	}
 	return nil
 }
