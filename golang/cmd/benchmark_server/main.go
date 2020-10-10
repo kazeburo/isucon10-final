@@ -224,7 +224,7 @@ func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.Benc
 			"`fz_latest_started_at` = ?, " +
 			"`fz_latest_finished_at` = ?, " +
 			"`fz_finish_count` = IFNULL(`fz_finish_count`,0) + 1 "
-		args = append(args, full, full, job.StartedAt, full, markedAt, full, job.StartedAt, markedAt)
+		args = append(args, full, full, full, job.StartedAt, full, markedAt, full, job.StartedAt, markedAt)
 	}
 	q = q + "WHERE `team_id` = ?"
 	args = append(args, job.TeamID)
