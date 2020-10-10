@@ -215,7 +215,7 @@ func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.Benc
 		"`latest_finished_at` = ?, " +
 		"`finish_count` = IFNULL(`finish_count`,0) + 1 "
 	args := []interface{}{full, full, full, job.StartedAt, full, markedAt, full, job.StartedAt, markedAt}
-	if markedAt.After(contestFreezesAt) || markedAt.Equal(contestFreezesAt) {
+	if markedAt.Local().Before(contestFreezesAt) || markedAt.Local().Equal(contestFreezesAt) {
 		q = q +
 			", `fz_best_score` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_score`), " +
 			"`fz_best_started_at` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_started_at`), " +
