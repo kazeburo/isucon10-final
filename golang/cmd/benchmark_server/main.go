@@ -215,7 +215,7 @@ func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.Benc
 		"`latest_finished_at` = ?, " +
 		"`finish_count` = IFNULL(`finish_count`,0) + 1 "
 	args := []interface{}{full, full, full, job.StartedAt, full, markedAt, full, job.StartedAt, markedAt}
-	if markedAt.Local().Before(contestFreezesAt) || markedAt.Local().Equal(contestFreezesAt) {
+	if markedAt.Unix() <= contestFreezesAt.Unix() {
 		q = q +
 			", `fz_best_score` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_score`), " +
 			"`fz_best_started_at` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_started_at`), " +
@@ -321,7 +321,6 @@ func backgroundLeaderboardPB() {
 	for {
 		select {
 		case <-ticker.C:
-			var contestStartsAt time.Time
 			_ = db.Get(&contestStartsAt, "SELECT `contest_starts_at` FROM `contest_config`")
 			_ = db.Get(&contestFreezesAt, "SELECT `contest_freezes_at` FROM `contest_config`")
 		}
@@ -341,6 +340,8 @@ func main() {
 	db, _ = xsuportal.GetDB()
 	db.SetMaxOpenConns(20)
 	db.SetMaxIdleConns(20)
+
+	go func() { backgroundLeaderboardPB() }()
 
 	benchmarkJobIdChannel = make(chan int, 300*4) // xsuportal.TeamCapacity
 	srv := echo.New()
