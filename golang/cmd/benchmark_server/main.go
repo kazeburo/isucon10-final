@@ -98,7 +98,7 @@ func (b *benchmarkQueueService) ReceiveBenchmarkJob(ctx context.Context, req *be
 		}
 	}
 	if jobHandle != nil {
-		log.Printf("[DEBUG] Dequeued: job_handle=%+v", jobHandle)
+		//log.Printf("[DEBUG] Dequeued: job_handle=%+v", jobHandle)
 	}
 	return &bench.ReceiveBenchmarkJobResponse{
 		JobHandle: jobHandle,
@@ -139,14 +139,14 @@ func (b *benchmarkReportService) ReportBenchmarkResult(srv bench.BenchmarkReport
 				req.Handle,
 			)
 			if err == sql.ErrNoRows {
-				log.Printf("[ERROR] Job not found: job_id=%v, handle=%+v", req.JobId, req.Handle)
+				//log.Printf("[ERROR] Job not found: job_id=%v, handle=%+v", req.JobId, req.Handle)
 				return status.Errorf(codes.NotFound, "Job %d not found or handle is wrong", req.JobId)
 			}
 			if err != nil {
 				return fmt.Errorf("get benchmark job: %w", err)
 			}
 			if req.Result.Finished {
-				log.Printf("[DEBUG] %v: save as finished", req.JobId)
+				//log.Printf("[DEBUG] %v: save as finished", req.JobId)
 				if err := b.saveAsFinished(tx, &job, req); err != nil {
 					return err
 				}
@@ -157,7 +157,7 @@ func (b *benchmarkReportService) ReportBenchmarkResult(srv bench.BenchmarkReport
 					return fmt.Errorf("notify benchmark job finished: %w", err)
 				}
 			} else {
-				log.Printf("[DEBUG] %v: save as running", req.JobId)
+				//log.Printf("[DEBUG] %v: save as running", req.JobId)
 				if err := b.saveAsRunning(tx, &job, req); err != nil {
 					return err
 				}
@@ -294,9 +294,8 @@ func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 		err := sqlx.Get(
 			db,
 			&job,
-			"SELECT * FROM `benchmark_jobs` WHERE `status` = ? AND `id` = ?",
-			resources.BenchmarkJob_PENDING,
-			id,
+			"SELECT * FROM `benchmark_jobs` WHERE `status` = ? AND id = ?",
+			resources.BenchmarkJob_PENDING,id,
 		)
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -305,7 +304,7 @@ func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 			return nil, fmt.Errorf("get benchmark job: %w", err)
 		}
 		return &job, nil
-	case <-time.After(200 * time.Millisecond):
+	case <-time.After(500 * time.Millisecond):
 		return nil, nil
 	}
 }
@@ -353,9 +352,10 @@ func main() {
 	log.Print("[INFO] listen ", address)
 
 	db, _ = xsuportal.GetDB()
-	db.SetMaxOpenConns(10)
+	db.SetMaxOpenConns(20)
+        db.SetMaxIdleConns(20)
 
-	benchmarkJobIdChannel = make(chan int, 300*2) // xsuportal.TeamCapacity
+	benchmarkJobIdChannel = make(chan int, 300*4) // xsuportal.TeamCapacity
 	srv := echo.New()
 	srv.POST("/api/contestant/benchmark_jobs/:id", enqueueBenchmarkJob)
 	go func() {

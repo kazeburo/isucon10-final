@@ -83,8 +83,8 @@ func main() {
 	xsuportal.PreLoadVAPIDKey()
 
 	db, _ = xsuportal.GetDB()
-	db.SetMaxOpenConns(50)
-	db.SetMaxIdleConns(50)
+	db.SetMaxOpenConns(30)
+	db.SetMaxIdleConns(30)
 
 	//srv.Use(middleware.Logger())
 	srv.Use(middleware.Recover())
@@ -218,7 +218,7 @@ func (*AdminService) Initialize(e echo.Context) error {
 
 	contestStatusCache = nil
 
-	host := util.GetEnv("BENCHMARK_SERVER_HOST", "localhost")
+	host := util.GetEnv("BENCHMARK_SERVER_HOST", "10.162.47.102")
 	port, _ := strconv.Atoi(util.GetEnv("BENCHMARK_SERVER_PORT", "50051"))
 	res := &adminpb.InitializeResponse{
 		Language: "go",
@@ -474,7 +474,7 @@ func (*ContestantService) EnqueueBenchmarkJob(e echo.Context) error {
 	j := makeBenchmarkJobPB(&job)
 
 	//
-	url_target := fmt.Sprintf("http://localhost:60051/api/contestant/benchmark_jobs/%d", job.ID)
+	url_target := fmt.Sprintf("http://10.162.47.102:60051/api/contestant/benchmark_jobs/%d", job.ID)
 	args := url.Values{}
 	res, err := http.PostForm(url_target, args)
 	if err != nil {
@@ -611,18 +611,29 @@ func (*ContestantService) Dashboard(e echo.Context) error {
 		return wrapError("check session", err)
 	}
 	team, _ := getCurrentTeam(e, db, false)
-	res, err, _ := sfGroup.Do(fmt.Sprintf("dashboard%d", team.ID), func() (interface{}, error) {
+	/*res, err, _ := sfGroup.Do(fmt.Sprintf("dashboard%d", team.ID), func() (interface{}, error) {
 		leaderboard, err := makeLeaderboardPB(team.ID)
 		if err != nil {
 			return nil, fmt.Errorf("make leaderboard: %w", err)
 		}
 		r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
-		return proto.Marshal(r)
-	})
+		res, _ := proto.Marshal(r)
+		/*var buffer bytes.Buffer
+		ww := gzip.NewWriter(&buffer)
+		ww.Write(res)
+		ww.Close()
+		res = buffer.Bytes()
+                return res, nil
+
+	})*/
+	leaderboard, err := makeLeaderboardPB(team.ID)
 	if err != nil {
 		return err
 	}
-	return e.Blob(http.StatusOK, "application/vnd.google.protobuf", res.([]byte))
+	r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
+	res, _ := proto.Marshal(r)
+	//e.Response().Header().Set("Content-Encoding", "gzip")
+	return e.Blob(http.StatusOK, "application/vnd.google.protobuf", res)
 }
 
 var pushSubCacheLock sync.RWMutex
@@ -1298,10 +1309,10 @@ func backgroundLeaderboardPB() {
 	for {
 		select {
 		case <-ticker.C:
-			start := time.Now()
+		//	start := time.Now()
 			leaderboard, err := makeLeaderboardPB(0)
-			end := time.Now()
-			log.Printf("%f秒\n", (end.Sub(start)).Seconds())
+		//	end := time.Now()
+	//		log.Printf("%f秒\n", (end.Sub(start)).Seconds())
 			n := time.Now()
 			contestStatus, err := getCurrentContestStatus(db)
 			if err != nil {
@@ -1335,13 +1346,17 @@ func backgroundLeaderboardPB() {
 }
 
 func (*AudienceService) Dashboard(e echo.Context) error {
+	//time.Sleep(30 * time.Millisecond)
 	audienceDashboardCacheLock.RLock()
 	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
 		defer audienceDashboardCacheLock.RUnlock()
 		e.Response().Header().Set("Content-Encoding", "gzip")
+		e.Response().Header().Set("Cache-Control", "max-age=1")
 		return e.Blob(http.StatusOK, "application/vnd.google.protobuf", audienceDashboardCache)
 	}
 	audienceDashboardCacheLock.RUnlock()
+	        log.Printf("cache miss audience dashboard")
+
 	res, err, _ := sfGroup.Do("dashboard", func() (interface{}, error) {
 		leaderboard, err := makeLeaderboardPB(0)
 		if err != nil {
@@ -1353,6 +1368,7 @@ func (*AudienceService) Dashboard(e echo.Context) error {
 	if err != nil {
 		return err
 	}
+	e.Response().Header().Set("Cache-Control", "max-age=1")
 	return e.Blob(http.StatusOK, "application/vnd.google.protobuf", res.([]byte))
 }
 
