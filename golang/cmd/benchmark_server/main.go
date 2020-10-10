@@ -75,12 +75,6 @@ func (b *benchmarkQueueService) ReceiveBenchmarkJob(ctx context.Context, req *be
 				return true, nil
 			}
 
-			var contestStartsAt time.Time
-			err = db.Get(&contestStartsAt, "SELECT `contest_starts_at` FROM `contest_config` LIMIT 1")
-			if err != nil {
-				return false, fmt.Errorf("get contest starts at: %w", err)
-			}
-
 			jobHandle = &bench.ReceiveBenchmarkJobResponse_JobHandle{
 				JobId:            job.ID,
 				Handle:           handle,
@@ -188,12 +182,6 @@ func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.Benc
 	}
 	markedAt := req.Result.MarkedAt.AsTime().Round(time.Microsecond)
 
-	var contestFreezesAt time.Time
-	err := db.Get(&contestFreezesAt, "SELECT `contest_freezes_at` FROM `contest_config`")
-	if err != nil {
-		return fmt.Errorf("query contest status: %w", err)
-	}
-
 	result := req.Result
 	var raw, deduction, full sql.NullInt32
 	if result.ScoreBreakdown != nil {
@@ -204,7 +192,7 @@ func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.Benc
 		full.Valid = true
 		full.Int32 = int32(result.ScoreBreakdown.Raw) - int32(result.ScoreBreakdown.Deduction)
 	}
-	_, err = db.Exec(
+	_, err := db.Exec(
 		"UPDATE `benchmark_jobs` SET `status` = ?, `score_raw` = ?, `score_deduction` = ?, `passed` = ?, `reason` = ?, `updated_at` = NOW(6), `finished_at` = ? WHERE `id` = ?",
 		resources.BenchmarkJob_FINISHED,
 		raw,
@@ -295,7 +283,7 @@ func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 			db,
 			&job,
 			"SELECT * FROM `benchmark_jobs` WHERE `status` = ? AND id = ?",
-			resources.BenchmarkJob_PENDING,id,
+			resources.BenchmarkJob_PENDING, id,
 		)
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -341,6 +329,22 @@ func enqueueBenchmarkJob(e echo.Context) error {
 	return e.JSON(http.StatusOK, nil)
 }
 
+var contestStartsAt time.Time
+var contestFreezesAt time.Time
+
+func backgroundLeaderboardPB() {
+	ticker := time.NewTicker(1000 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			var contestStartsAt time.Time
+			_ = db.Get(&contestStartsAt, "SELECT `contest_starts_at` FROM `contest_config`")
+			_ = db.Get(&contestFreezesAt, "SELECT `contest_freezes_at` FROM `contest_config`")
+		}
+	}
+}
+
 func main() {
 	port := util.GetEnv("PORT", "50051")
 	address := ":" + port
@@ -353,7 +357,7 @@ func main() {
 
 	db, _ = xsuportal.GetDB()
 	db.SetMaxOpenConns(20)
-        db.SetMaxIdleConns(20)
+	db.SetMaxIdleConns(20)
 
 	benchmarkJobIdChannel = make(chan int, 300*4) // xsuportal.TeamCapacity
 	srv := echo.New()
