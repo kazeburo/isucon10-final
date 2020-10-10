@@ -214,17 +214,17 @@ func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.Benc
 		"`latest_started_at` = ?, " +
 		"`latest_finished_at` = ?, " +
 		"`finish_count` = IFNULL(`finish_count`,0) + 1 "
-	args := []interface{}{full, full, full, markedAt, full, job.StartedAt, full, job.StartedAt, markedAt}
+	args := []interface{}{full, full, full, job.StartedAt, full, markedAt, full, job.StartedAt, markedAt}
 	if markedAt.After(contestFreezesAt) {
 		q = q +
-			"`, fz_best_score` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_score`), " +
+			", `fz_best_score` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_score`), " +
 			"`fz_best_started_at` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_started_at`), " +
 			"`fz_best_finished_at` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_finished_at`), " +
 			"`fz_latest_score` = ?, " +
 			"`fz_latest_started_at` = ?, " +
 			"`fz_latest_finished_at` = ?, " +
 			"`fz_finish_count` = IFNULL(`fz_finish_count`,0) + 1 "
-		args = append(args, full, full, full, markedAt, full, job.StartedAt, full, job.StartedAt, markedAt)
+		args = append(args, full, full, job.StartedAt, full, markedAt, full, job.StartedAt, markedAt)
 	}
 	q = q + "WHERE `team_id` = ?"
 	args = append(args, job.TeamID)
