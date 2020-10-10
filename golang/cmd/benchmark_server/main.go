@@ -205,47 +205,30 @@ func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.Benc
 	if err != nil {
 		return fmt.Errorf("update benchmark job status: %w", err)
 	}
-	_, err = db.Exec("UPDATE `team_scores`"+
-		"SET "+
-		"`best_score` = IF(? >= IFNULL(`best_score`,0),?,`best_score`), "+
-		"`best_started_at` = IF(? >= IFNULL(`best_score`,0),?,`best_started_at`), "+
-		"`best_finished_at` = IF(? >= IFNULL(`best_score`,0),?,`best_finished_at`), "+
-		"`latest_score` = ?, "+
-		"`latest_started_at` = ?, "+
-		"`latest_finished_at` = ?, "+
-		"`finish_count` = IFNULL(`finish_count`,0) + 1 "+
-		"WHERE `team_id` = ?",
-		full, full,
-		full, markedAt,
-		full, job.StartedAt,
-		full,
-		job.StartedAt,
-		markedAt,
-		job.TeamID,
-	)
-	if err != nil {
-		return fmt.Errorf("update benchmark job status: %w", err)
+	q := "UPDATE `team_scores`" +
+		"SET " +
+		"`best_score` = IF(? >= IFNULL(`best_score`,0),?,`best_score`), " +
+		"`best_started_at` = IF(? >= IFNULL(`best_score`,0),?,`best_started_at`), " +
+		"`best_finished_at` = IF(? >= IFNULL(`best_score`,0),?,`best_finished_at`), " +
+		"`latest_score` = ?, " +
+		"`latest_started_at` = ?, " +
+		"`latest_finished_at` = ?, " +
+		"`finish_count` = IFNULL(`finish_count`,0) + 1 "
+	args := []interface{}{full, full, full, markedAt, full, job.StartedAt, full, job.StartedAt, markedAt}
+	if markedAt.Before(contestFreezesAt) {
+		q = q +
+			"`fz_best_score` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_score`), " +
+			"`fz_best_started_at` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_started_at`), " +
+			"`fz_best_finished_at` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_finished_at`), " +
+			"`fz_latest_score` = ?, " +
+			"`fz_latest_started_at` = ?, " +
+			"`fz_latest_finished_at` = ?, " +
+			"`fz_finish_count` = IFNULL(`fz_finish_count`,0) + 1 "
+		args = append(args, full, full, full, markedAt, full, job.StartedAt, full, job.StartedAt, markedAt)
 	}
-
-	_, err = db.Exec("UPDATE `team_scores`"+
-		"SET "+
-		"`fz_best_score` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_score`), "+
-		"`fz_best_started_at` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_started_at`), "+
-		"`fz_best_finished_at` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_finished_at`), "+
-		"`fz_latest_score` = ?, "+
-		"`fz_latest_started_at` = ?, "+
-		"`fz_latest_finished_at` = ?, "+
-		"`fz_finish_count` = IFNULL(`fz_finish_count`,0) + 1 "+
-		"WHERE `team_id` = ? AND latest_finished_at <= ?",
-		full, full,
-		full, markedAt,
-		full, job.StartedAt,
-		full,
-		job.StartedAt,
-		markedAt,
-		job.TeamID,
-		contestFreezesAt,
-	)
+	q = q + "WHERE `team_id` = ?"
+	args = append(args, job.TeamID)
+	_, err = db.Exec(q, args...)
 	if err != nil {
 		return fmt.Errorf("update benchmark job status: %w", err)
 	}
