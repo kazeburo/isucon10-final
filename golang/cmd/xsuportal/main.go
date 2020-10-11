@@ -1722,7 +1722,7 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 			"IF(`ts`.`team_id` = ?,`ts`.`latest_finished_at`,`ts`.`fz_latest_finished_at`) AS `latest_score_marked_at`, " +
 			"IF(`ts`.`team_id` = ?,`ts`.`finish_count`, `ts`.`fz_finish_count`) AS `finish_count` " +
 			"FROM `team_scores` `ts` " +
-			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `team_scores`.`team_id` ASC"
+			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `ts`.`team_id` ASC"
 		err = tx.Select(&leaderboard, query, teamID, teamID, teamID, teamID, teamID, teamID, teamID)
 		if err != sql.ErrNoRows && err != nil {
 			return nil, fmt.Errorf("select leaderboard: %w", err)
@@ -1808,7 +1808,7 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 			"`ts`.`latest_finished_at` AS `latest_score_marked_at`, " +
 			"`ts`.`finish_count` AS `finish_count` " +
 			"FROM `team_scores` `ts` " +
-			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `team_scores`.`team_id` ASC"
+			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `ts`.`team_id` ASC"
 		err = tx.Select(&leaderboard, query)
 		if err != sql.ErrNoRows && err != nil {
 			return nil, fmt.Errorf("select leaderboard: %w", err)
