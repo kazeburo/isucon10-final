@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"compress/gzip"
+//	"bytes"
+//	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -43,7 +44,7 @@ import (
 )
 
 const (
-	TeamCapacity               = 110
+	TeamCapacity               = 100
 	AdminID                    = "admin"
 	AdminPassword              = "admin"
 	DebugContestStatusFilePath = "/tmp/XSUPORTAL_CONTEST_STATUS"
@@ -83,8 +84,8 @@ func main() {
 	xsuportal.PreLoadVAPIDKey()
 
 	db, _ = xsuportal.GetDB()
-	db.SetMaxOpenConns(30)
-	db.SetMaxIdleConns(30)
+	db.SetMaxOpenConns(50)
+	db.SetMaxIdleConns(50)
 
 	//srv.Use(middleware.Logger())
 	srv.Use(middleware.Recover())
@@ -218,7 +219,7 @@ func (*AdminService) Initialize(e echo.Context) error {
 
 	contestStatusCache = nil
 
-	host := util.GetEnv("BENCHMARK_SERVER_HOST", "10.162.47.102")
+	host := util.GetEnv("BENCHMARK_SERVER_HOST", "10.162.47.103")
 	port, _ := strconv.Atoi(util.GetEnv("BENCHMARK_SERVER_PORT", "50051"))
 	res := &adminpb.InitializeResponse{
 		Language: "go",
@@ -474,13 +475,15 @@ func (*ContestantService) EnqueueBenchmarkJob(e echo.Context) error {
 	j := makeBenchmarkJobPB(&job)
 
 	//
-	url_target := fmt.Sprintf("http://10.162.47.102:60051/api/contestant/benchmark_jobs/%d", job.ID)
+	url_target := fmt.Sprintf("http://10.162.47.103:60051/api/contestant/benchmark_jobs/%d", job.ID)
 	args := url.Values{}
 	res, err := http.PostForm(url_target, args)
 	if err != nil {
 		return fmt.Errorf("pass job id to benchmark: %w", err)
-	}
-	defer res.Body.Close()
+	} else {
+          io.Copy(ioutil.Discard, res.Body)
+	  res.Body.Close()
+        }
 	//
 	return writeProto(e, http.StatusOK, &contestantpb.EnqueueBenchmarkJobResponse{
 		Job: j,
@@ -611,21 +614,20 @@ func (*ContestantService) Dashboard(e echo.Context) error {
 		return wrapError("check session", err)
 	}
 	team, _ := getCurrentTeam(e, db, false)
-	/*res, err, _ := sfGroup.Do(fmt.Sprintf("dashboard%d", team.ID), func() (interface{}, error) {
+	/* res, err, _ := sfGroup.Do(fmt.Sprintf("dashboard%d", team.ID), func() (interface{}, error) {
 		leaderboard, err := makeLeaderboardPB(team.ID)
 		if err != nil {
 			return nil, fmt.Errorf("make leaderboard: %w", err)
 		}
 		r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
-		res, _ := proto.Marshal(r)
+		return proto.Marshal(r)
 		/*var buffer bytes.Buffer
 		ww := gzip.NewWriter(&buffer)
 		ww.Write(res)
 		ww.Close()
 		res = buffer.Bytes()
-                return res, nil
-
-	})*/
+                return res, nil 
+	}) */
 	leaderboard, err := makeLeaderboardPB(team.ID)
 	if err != nil {
 		return err
@@ -1324,15 +1326,15 @@ func backgroundLeaderboardPB() {
 			if err == nil {
 				r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
 				res, _ := proto.Marshal(r)
-				var buffer bytes.Buffer
+				/*var buffer bytes.Buffer
 				ww := gzip.NewWriter(&buffer)
 				ww.Write(res)
 				ww.Close()
-				res = buffer.Bytes()
+				res = buffer.Bytes() */
 				audienceDashboardCacheLock.Lock()
 				audienceDashboardCache = res
 				if contestFreezesAt.Before(n) && !contestFinished {
-					audienceDashboardCacheTime = contestStatus.ContestEndsAt.UnixNano() // n.UnixNano() + 800000000
+					audienceDashboardCacheTime = n.UnixNano() + 8000000000 // contestStatus.ContestEndsAt.UnixNano() // n.UnixNano() + 800000000
 				} else {
 					audienceDashboardCacheTime = n.UnixNano() + 800000000
 				}
@@ -1350,7 +1352,7 @@ func (*AudienceService) Dashboard(e echo.Context) error {
 	audienceDashboardCacheLock.RLock()
 	if audienceDashboardCache != nil && audienceDashboardCacheTime > time.Now().UnixNano() {
 		defer audienceDashboardCacheLock.RUnlock()
-		e.Response().Header().Set("Content-Encoding", "gzip")
+		//e.Response().Header().Set("Content-Encoding", "gzip")
 		e.Response().Header().Set("Cache-Control", "max-age=1")
 		return e.Blob(http.StatusOK, "application/vnd.google.protobuf", audienceDashboardCache)
 	}
@@ -1685,6 +1687,24 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback()
+        jobResultsQuery := "SELECT\n" +
+                "  `team_id` AS `team_id`,\n" +
+                "  (`score_raw` - `score_deduction`) AS `score`,\n" +
+                "  `started_at` AS `started_at`,\n" +
+                "  `finished_at` AS `finished_at`\n" +
+                "FROM\n" +
+                "  `benchmark_jobs` force index(idx3)\n" +
+                "WHERE\n" +
+                "    `finished_at` IS NOT NULL\n" +
+                "    -- score freeze\n" +
+                "    AND (`team_id` = ? OR (`team_id` != ? AND (? = TRUE OR `finished_at` < ?)))\n" +
+                "ORDER BY\n" +
+                "  `finished_at`"
+        var jobResults []xsuportal.JobResult
+        err = tx.Select(&jobResults, jobResultsQuery, teamID, teamID, contestFinished, contestFreezesAt)
+        if err != sql.ErrNoRows && err != nil {
+                return nil, fmt.Errorf("select job results: %w", err)
+        }
 	var leaderboard []xsuportal.LeaderBoardTeam
 	if contestFreezesAt.Before(time.Now()) && !contestFinished {
 		query := "SELECT " +
@@ -1793,13 +1813,14 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 			return nil, fmt.Errorf("select leaderboard: %w", err)
 		}
 	}
+	/*
 	jobResultsQuery := "SELECT\n" +
 		"  `team_id` AS `team_id`,\n" +
 		"  (`score_raw` - `score_deduction`) AS `score`,\n" +
 		"  `started_at` AS `started_at`,\n" +
 		"  `finished_at` AS `finished_at`\n" +
 		"FROM\n" +
-		"  `benchmark_jobs`\n" +
+		"  `benchmark_jobs` force index(idx3)\n" +
 		"WHERE\n" +
 		"    `finished_at` IS NOT NULL\n" +
 		"    -- score freeze\n" +
@@ -1811,6 +1832,7 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 	if err != sql.ErrNoRows && err != nil {
 		return nil, fmt.Errorf("select job results: %w", err)
 	}
+	*/
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}

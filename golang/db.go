@@ -10,7 +10,7 @@ import (
 func GetDB() (*sqlx.DB, error) {
 	mysqlConfig := mysql.NewConfig()
 	mysqlConfig.Net = "tcp"
-	mysqlConfig.Addr = util.GetEnv("MYSQL_HOSTNAME3", "10.162.47.101") + ":" + util.GetEnv("MYSQL_PORT", "3306")
+	mysqlConfig.Addr = util.GetEnv("MYSQL_HOSTNAME3", "10.162.47.103") + ":" + util.GetEnv("MYSQL_PORT", "3306")
 	mysqlConfig.User = util.GetEnv("MYSQL_USER", "isucon")
 	mysqlConfig.Passwd = util.GetEnv("MYSQL_PASS", "isucon")
 	mysqlConfig.DBName = util.GetEnv("MYSQL_DATABASE", "xsuportal")

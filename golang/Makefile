@@ -30,7 +30,8 @@ restart: build
 	ssh -t 10.162.47.103 sudo systemctl stop xsuportal-api-golang.service xsuportal-web-golang.service 
 	scp bin/xsuportal 10.162.47.103:webapp/golang/bin/xsuportal
 	scp bin/benchmark_server 10.162.47.103:webapp/golang/bin/benchmark_server
-	ssh -t 10.162.47.103 sudo systemctl start xsuportal-api-golang.service xsuportal-web-golang.service
-	sudo systemctl stop xsuportal-api-golang.service
-	sudo systemctl stop xsuportal-web-golang.service
+	ssh -t 10.162.47.103 sudo systemctl start xsuportal-api-golang.service
+	ssh -t 10.162.47.103 sudo systemctl stop xsuportal-web-golang.service
+	sudo systemctl restart xsuportal-api-golang.service
+	sudo systemctl restart xsuportal-web-golang.service
 	

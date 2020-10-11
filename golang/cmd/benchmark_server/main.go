@@ -173,7 +173,7 @@ func (b *benchmarkReportService) ReportBenchmarkResult(srv bench.BenchmarkReport
 	}
 }
 
-func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.BenchmarkJob, req *bench.ReportBenchmarkResultRequest) error {
+func (b *benchmarkReportService) saveAsFinished(db sqlx.Execer, job *xsuportal.BenchmarkJob, req *bench.ReportBenchmarkResultRequest) error {
 	if !job.StartedAt.Valid || job.FinishedAt.Valid {
 		return status.Errorf(codes.FailedPrecondition, "Job %v has already finished or has not started yet", req.JobId)
 	}
@@ -215,7 +215,7 @@ func (b *benchmarkReportService) saveAsFinished(db *sqlx.Tx, job *xsuportal.Benc
 		"`latest_finished_at` = ?, " +
 		"`finish_count` = IFNULL(`finish_count`,0) + 1 "
 	args := []interface{}{full, full, full, job.StartedAt, full, markedAt, full, job.StartedAt, markedAt}
-	if markedAt.Unix() <= contestFreezesAt.Unix() {
+	if markedAt.Unix() < contestFreezesAt.Unix() {
 		q = q +
 			", `fz_best_score` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_score`), " +
 			"`fz_best_started_at` = IF(? >= IFNULL(`fz_best_score`,0),?,`fz_best_started_at`), " +
@@ -275,7 +275,7 @@ func pollBenchmarkJob(db sqlx.Queryer) (*xsuportal.BenchmarkJob, error) {
 			return nil, fmt.Errorf("get benchmark job: %w", err)
 		}
 		return &job, nil
-	case <-time.After(500 * time.Millisecond):
+	case <-time.After(200 * time.Millisecond):
 		return nil, nil
 	}
 }

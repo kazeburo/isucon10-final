@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"io"
 	"log"
 
 	"github.com/SherClockHolmes/webpush-go"
@@ -211,7 +212,8 @@ func sendNotificationByWebPush(db sqlx.Ext, contestantId string, notificationPB 
 			continue
 			//	return fmt.Errorf("webpush SendNotification: %w", err)
 		}
-		defer resp.Body.Close()
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
 	}
 	return nil
 }
