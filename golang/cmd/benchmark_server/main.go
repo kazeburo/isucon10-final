@@ -338,8 +338,8 @@ func main() {
 	log.Print("[INFO] listen ", address)
 
 	db, _ = xsuportal.GetDB()
-	db.SetMaxOpenConns(20)
-	db.SetMaxIdleConns(20)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
 
 	go func() { backgroundLeaderboardPB() }()
 
