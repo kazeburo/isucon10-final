@@ -100,6 +100,10 @@ CREATE TABLE `contest_config` (
 DROP TABLE IF EXISTS `team_scores`;
 CREATE TABLE `team_scores` (
   `team_id` BIGINT NOT NULL PRIMARY KEY,
+  `name` VARCHAR(255) NOT NULL,
+  `leader_id` VARCHAR(255),
+  `withdrawn` TINYINT(1) DEFAULT FALSE,
+  `student_flag` tinyint NOT NULL DEFAULT '0',
   `best_score` INT,
   `best_started_at` DATETIME(6),
   `best_finished_at` DATETIME(6),

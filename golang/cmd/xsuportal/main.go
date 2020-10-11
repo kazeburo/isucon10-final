@@ -1,8 +1,8 @@
 package main
 
 import (
-//	"bytes"
-//	"compress/gzip"
+	//	"bytes"
+	//	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -481,9 +481,9 @@ func (*ContestantService) EnqueueBenchmarkJob(e echo.Context) error {
 	if err != nil {
 		return fmt.Errorf("pass job id to benchmark: %w", err)
 	} else {
-          io.Copy(ioutil.Discard, res.Body)
-	  res.Body.Close()
-        }
+		io.Copy(ioutil.Discard, res.Body)
+		res.Body.Close()
+	}
 	//
 	return writeProto(e, http.StatusOK, &contestantpb.EnqueueBenchmarkJobResponse{
 		Job: j,
@@ -615,19 +615,19 @@ func (*ContestantService) Dashboard(e echo.Context) error {
 	}
 	team, _ := getCurrentTeam(e, db, false)
 	/* res, err, _ := sfGroup.Do(fmt.Sprintf("dashboard%d", team.ID), func() (interface{}, error) {
-		leaderboard, err := makeLeaderboardPB(team.ID)
-		if err != nil {
-			return nil, fmt.Errorf("make leaderboard: %w", err)
-		}
-		r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
-		return proto.Marshal(r)
-		/*var buffer bytes.Buffer
-		ww := gzip.NewWriter(&buffer)
-		ww.Write(res)
-		ww.Close()
-		res = buffer.Bytes()
-                return res, nil 
-	}) */
+			leaderboard, err := makeLeaderboardPB(team.ID)
+			if err != nil {
+				return nil, fmt.Errorf("make leaderboard: %w", err)
+			}
+			r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
+			return proto.Marshal(r)
+			/*var buffer bytes.Buffer
+			ww := gzip.NewWriter(&buffer)
+			ww.Write(res)
+			ww.Close()
+			res = buffer.Bytes()
+	                return res, nil
+		}) */
 	leaderboard, err := makeLeaderboardPB(team.ID)
 	if err != nil {
 		return err
@@ -1045,15 +1045,6 @@ func (*RegistrationService) CreateTeam(e echo.Context) error {
 		return halt(e, http.StatusInternalServerError, "チームを登録できませんでした", nil)
 	}
 
-	_, err = conn.ExecContext(
-		ctx,
-		"INSERT INTO `team_scores` (`team_id`) VALUES (?)",
-		teamID,
-	)
-	if err != nil {
-		return fmt.Errorf("insert team_scores: %w", err)
-	}
-
 	contestant, _ := getCurrentContestant(e, db, false)
 
 	_, err = conn.ExecContext(
@@ -1080,7 +1071,16 @@ func (*RegistrationService) CreateTeam(e echo.Context) error {
 
 	_, err = conn.ExecContext(
 		ctx,
-		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student_flag` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
+		"INSERT INTO `team_scores` (`team_id`.`name`,`leader_id`,`withdrawn`) VALUES (?,?,?,?)",
+		teamID, req.TeamName, contestant.ID, 0,
+	)
+	if err != nil {
+		return fmt.Errorf("insert team_scores: %w", err)
+	}
+
+	_, err = conn.ExecContext(
+		ctx,
+		"UPDATE team_scores LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `team_scores`.`team_id` = `team_student_flags`.`team_id` SET `team_scores`.`student_flag` = `team_student_flags`.`student` WHERE `team_scores`.`team_id` = ?",
 		teamID,
 		teamID,
 	)
@@ -1149,7 +1149,8 @@ func (*RegistrationService) JoinTeam(e echo.Context) error {
 	}
 
 	_, err = tx.Exec(
-		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student_flag` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
+		ctx,
+		"UPDATE team_scores LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `team_scores`.`team_id` = `team_student_flags`.`team_id` SET `team_scores`.`student_flag` = `team_student_flags`.`student` WHERE `team_scores`.`team_id` = ?",
 		req.TeamId,
 		req.TeamId,
 	)
@@ -1200,8 +1201,9 @@ func (*RegistrationService) UpdateRegistration(e echo.Context) error {
 	}
 
 	_, err = tx.Exec(
-		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student_flag` = `team_student_flags`.`student` WHERE `teams`.`id` = ?",
+		"UPDATE team_scores LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `team_scores`.`team_id` = `team_student_flags`.`team_id` SET `team_scores`.`name`=?, `team_scores`.`student_flag` = `team_student_flags`.`student` WHERE `team_scores`.`team_id` = ?",
 		team.ID,
+		req.TeamName,
 		team.ID,
 	)
 	if err != nil {
@@ -1254,7 +1256,7 @@ func (*RegistrationService) DeleteRegistration(e echo.Context) error {
 	}
 
 	_, err = tx.Exec(
-		"UPDATE teams LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` GROUP BY `contestants`.`team_id`) `team_student_flags` ON `teams`.`id` = `team_student_flags`.`team_id` SET `teams`.`student` = `team_student_flags`.`student`",
+		"UPDATE team_scores LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `team_scores`.`team_id` = `team_student_flags`.`team_id` SET `team_scores`.`withdrawn`=TRUE,`team_scores`.`leader_id`=NULL, `team_scores`.`student_flag` = `team_student_flags`.`student` WHERE `team_scores`.`team_id` = ?",
 	)
 	if err != nil {
 		return fmt.Errorf("update team: %w", err)
@@ -1311,10 +1313,10 @@ func backgroundLeaderboardPB() {
 	for {
 		select {
 		case <-ticker.C:
-		//	start := time.Now()
+			//	start := time.Now()
 			leaderboard, err := makeLeaderboardPB(0)
-		//	end := time.Now()
-	//		log.Printf("%f秒\n", (end.Sub(start)).Seconds())
+			//	end := time.Now()
+			//		log.Printf("%f秒\n", (end.Sub(start)).Seconds())
 			n := time.Now()
 			contestStatus, err := getCurrentContestStatus(db)
 			if err != nil {
@@ -1357,7 +1359,7 @@ func (*AudienceService) Dashboard(e echo.Context) error {
 		return e.Blob(http.StatusOK, "application/vnd.google.protobuf", audienceDashboardCache)
 	}
 	audienceDashboardCacheLock.RUnlock()
-	        log.Printf("cache miss audience dashboard")
+	log.Printf("cache miss audience dashboard")
 
 	res, err, _ := sfGroup.Do("dashboard", func() (interface{}, error) {
 		leaderboard, err := makeLeaderboardPB(0)
@@ -1687,32 +1689,32 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback()
-        jobResultsQuery := "SELECT\n" +
-                "  `team_id` AS `team_id`,\n" +
-                "  (`score_raw` - `score_deduction`) AS `score`,\n" +
-                "  `started_at` AS `started_at`,\n" +
-                "  `finished_at` AS `finished_at`\n" +
-                "FROM\n" +
-                "  `benchmark_jobs` force index(idx3)\n" +
-                "WHERE\n" +
-                "    `finished_at` IS NOT NULL\n" +
-                "    -- score freeze\n" +
-                "    AND (`team_id` = ? OR (`team_id` != ? AND (? = TRUE OR `finished_at` < ?)))\n" +
-                "ORDER BY\n" +
-                "  `finished_at`"
-        var jobResults []xsuportal.JobResult
-        err = tx.Select(&jobResults, jobResultsQuery, teamID, teamID, contestFinished, contestFreezesAt)
-        if err != sql.ErrNoRows && err != nil {
-                return nil, fmt.Errorf("select job results: %w", err)
-        }
+	jobResultsQuery := "SELECT\n" +
+		"  `team_id` AS `team_id`,\n" +
+		"  (`score_raw` - `score_deduction`) AS `score`,\n" +
+		"  `started_at` AS `started_at`,\n" +
+		"  `finished_at` AS `finished_at`\n" +
+		"FROM\n" +
+		"  `benchmark_jobs` force index(idx3)\n" +
+		"WHERE\n" +
+		"    `finished_at` IS NOT NULL\n" +
+		"    -- score freeze\n" +
+		"    AND (`team_id` = ? OR (`team_id` != ? AND (? = TRUE OR `finished_at` < ?)))\n" +
+		"ORDER BY\n" +
+		"  `finished_at`"
+	var jobResults []xsuportal.JobResult
+	err = tx.Select(&jobResults, jobResultsQuery, teamID, teamID, contestFinished, contestFreezesAt)
+	if err != sql.ErrNoRows && err != nil {
+		return nil, fmt.Errorf("select job results: %w", err)
+	}
 	var leaderboard []xsuportal.LeaderBoardTeam
 	if contestFreezesAt.Before(time.Now()) && !contestFinished {
 		query := "SELECT " +
-			"`teams`.`id` AS `id`, " +
-			"`teams`.`name` AS `name`, " +
-			"`teams`.`leader_id` AS `leader_id`, " +
-			"`teams`.`withdrawn` AS `withdrawn`, " +
-			"`teams`.`student_flag` AS `student`, " +
+			"`team_scores`.`team_id` AS `id`, " +
+			"`team_scores`.`name` AS `name`, " +
+			"`team_scores`.`leader_id` AS `leader_id`, " +
+			"`team_scores`.`withdrawn` AS `withdrawn`, " +
+			"`team_scores`.`student_flag` AS `student`, " +
 			"IF(`teams`.`id` = ?,`ts`.`best_score`,`ts`.`fz_best_score`) AS `best_score`, " +
 			"IF(`teams`.`id` = ?,`ts`.`best_started_at`,`ts`.`fz_best_started_at`) AS `best_score_started_at`, " +
 			"IF(`teams`.`id` = ?,`ts`.`best_finished_at`,`ts`.`fz_best_finished_at`) AS `best_score_marked_at`, " +
@@ -1720,8 +1722,8 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 			"IF(`teams`.`id` = ?,`ts`.`latest_started_at`,`ts`.`fz_latest_started_at`) AS `latest_score_started_at`, " +
 			"IF(`teams`.`id` = ?,`ts`.`latest_finished_at`,`ts`.`fz_latest_finished_at`) AS `latest_score_marked_at`, " +
 			"IF(`teams`.`id` = ?,`ts`.`finish_count`, `ts`.`fz_finish_count`) AS `finish_count` " +
-			"FROM `teams` LEFT JOIN `team_scores` `ts` ON `teams`.`id` = `ts`.`team_id` " +
-			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `teams`.`id` ASC"
+			"FROM `team_scores` +
+			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `team_scores`.`team_id` ASC"
 		err = tx.Select(&leaderboard, query, teamID, teamID, teamID, teamID, teamID, teamID, teamID)
 		if err != sql.ErrNoRows && err != nil {
 			return nil, fmt.Errorf("select leaderboard: %w", err)
@@ -1794,11 +1796,11 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 		*/
 	} else {
 		query := "SELECT " +
-			"`teams`.`id` AS `id`, " +
-			"`teams`.`name` AS `name`, " +
-			"`teams`.`leader_id` AS `leader_id`, " +
-			"`teams`.`withdrawn` AS `withdrawn`, " +
-			"`teams`.`student_flag` AS `student`, " +
+			"`team_scores`.`team_id` AS `id`, " +
+			"`team_scores`.`name` AS `name`, " +
+			"`team_scores`.`leader_id` AS `leader_id`, " +
+			"`team_scores`.`withdrawn` AS `withdrawn`, " +
+			"`team_scores`.`student_flag` AS `student`, " +
 			"`ts`.`best_score` AS `best_score`, " +
 			"`ts`.`best_started_at` AS `best_score_started_at`, " +
 			"`ts`.`best_finished_at` AS `best_score_marked_at`, " +
@@ -1807,31 +1809,31 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 			"`ts`.`latest_finished_at` AS `latest_score_marked_at`, " +
 			"`ts`.`finish_count` AS `finish_count` " +
 			"FROM `teams` LEFT JOIN `team_scores` `ts` ON `teams`.`id` = `ts`.`team_id` " +
-			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `teams`.`id` ASC"
+			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `team_scores`.`team_id` ASC"
 		err = tx.Select(&leaderboard, query)
 		if err != sql.ErrNoRows && err != nil {
 			return nil, fmt.Errorf("select leaderboard: %w", err)
 		}
 	}
 	/*
-	jobResultsQuery := "SELECT\n" +
-		"  `team_id` AS `team_id`,\n" +
-		"  (`score_raw` - `score_deduction`) AS `score`,\n" +
-		"  `started_at` AS `started_at`,\n" +
-		"  `finished_at` AS `finished_at`\n" +
-		"FROM\n" +
-		"  `benchmark_jobs` force index(idx3)\n" +
-		"WHERE\n" +
-		"    `finished_at` IS NOT NULL\n" +
-		"    -- score freeze\n" +
-		"    AND (`team_id` = ? OR (`team_id` != ? AND (? = TRUE OR `finished_at` < ?)))\n" +
-		"ORDER BY\n" +
-		"  `finished_at`"
-	var jobResults []xsuportal.JobResult
-	err = tx.Select(&jobResults, jobResultsQuery, teamID, teamID, contestFinished, contestFreezesAt)
-	if err != sql.ErrNoRows && err != nil {
-		return nil, fmt.Errorf("select job results: %w", err)
-	}
+		jobResultsQuery := "SELECT\n" +
+			"  `team_id` AS `team_id`,\n" +
+			"  (`score_raw` - `score_deduction`) AS `score`,\n" +
+			"  `started_at` AS `started_at`,\n" +
+			"  `finished_at` AS `finished_at`\n" +
+			"FROM\n" +
+			"  `benchmark_jobs` force index(idx3)\n" +
+			"WHERE\n" +
+			"    `finished_at` IS NOT NULL\n" +
+			"    -- score freeze\n" +
+			"    AND (`team_id` = ? OR (`team_id` != ? AND (? = TRUE OR `finished_at` < ?)))\n" +
+			"ORDER BY\n" +
+			"  `finished_at`"
+		var jobResults []xsuportal.JobResult
+		err = tx.Select(&jobResults, jobResultsQuery, teamID, teamID, contestFinished, contestFreezesAt)
+		if err != sql.ErrNoRows && err != nil {
+			return nil, fmt.Errorf("select job results: %w", err)
+		}
 	*/
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit tx: %w", err)
