@@ -1149,7 +1149,6 @@ func (*RegistrationService) JoinTeam(e echo.Context) error {
 	}
 
 	_, err = tx.Exec(
-		ctx,
 		"UPDATE team_scores LEFT JOIN (SELECT team_id,(SUM(`student`) = COUNT(*)) AS `student` FROM `contestants` WHERE `contestants`.`team_id` = ?) `team_student_flags` ON `team_scores`.`team_id` = `team_student_flags`.`team_id` SET `team_scores`.`student_flag` = `team_student_flags`.`student` WHERE `team_scores`.`team_id` = ?",
 		req.TeamId,
 		req.TeamId,
@@ -1722,7 +1721,7 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 			"IF(`teams`.`id` = ?,`ts`.`latest_started_at`,`ts`.`fz_latest_started_at`) AS `latest_score_started_at`, " +
 			"IF(`teams`.`id` = ?,`ts`.`latest_finished_at`,`ts`.`fz_latest_finished_at`) AS `latest_score_marked_at`, " +
 			"IF(`teams`.`id` = ?,`ts`.`finish_count`, `ts`.`fz_finish_count`) AS `finish_count` " +
-			"FROM `team_scores` +
+			"FROM `team_scores` " +
 			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `team_scores`.`team_id` ASC"
 		err = tx.Select(&leaderboard, query, teamID, teamID, teamID, teamID, teamID, teamID, teamID)
 		if err != sql.ErrNoRows && err != nil {
@@ -1808,7 +1807,7 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 			"`ts`.`latest_started_at` AS `latest_score_started_at`, " +
 			"`ts`.`latest_finished_at` AS `latest_score_marked_at`, " +
 			"`ts`.`finish_count` AS `finish_count` " +
-			"FROM `teams` LEFT JOIN `team_scores` `ts` ON `teams`.`id` = `ts`.`team_id` " +
+			"FROM `team_scores` " +
 			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `team_scores`.`team_id` ASC"
 		err = tx.Select(&leaderboard, query)
 		if err != sql.ErrNoRows && err != nil {
