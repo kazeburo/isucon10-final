@@ -1709,19 +1709,19 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 	var leaderboard []xsuportal.LeaderBoardTeam
 	if contestFreezesAt.Before(time.Now()) && !contestFinished {
 		query := "SELECT " +
-			"`team_scores`.`team_id` AS `id`, " +
-			"`team_scores`.`name` AS `name`, " +
-			"`team_scores`.`leader_id` AS `leader_id`, " +
-			"`team_scores`.`withdrawn` AS `withdrawn`, " +
-			"`team_scores`.`student_flag` AS `student`, " +
-			"IF(`teams`.`id` = ?,`ts`.`best_score`,`ts`.`fz_best_score`) AS `best_score`, " +
-			"IF(`teams`.`id` = ?,`ts`.`best_started_at`,`ts`.`fz_best_started_at`) AS `best_score_started_at`, " +
-			"IF(`teams`.`id` = ?,`ts`.`best_finished_at`,`ts`.`fz_best_finished_at`) AS `best_score_marked_at`, " +
-			"IF(`teams`.`id` = ?,`ts`.`latest_score`,`ts`.`fz_latest_score`) AS `latest_score`, " +
-			"IF(`teams`.`id` = ?,`ts`.`latest_started_at`,`ts`.`fz_latest_started_at`) AS `latest_score_started_at`, " +
-			"IF(`teams`.`id` = ?,`ts`.`latest_finished_at`,`ts`.`fz_latest_finished_at`) AS `latest_score_marked_at`, " +
-			"IF(`teams`.`id` = ?,`ts`.`finish_count`, `ts`.`fz_finish_count`) AS `finish_count` " +
-			"FROM `team_scores` " +
+			"`ts`.`team_id` AS `id`, " +
+			"`ts`.`name` AS `name`, " +
+			"`ts`.`leader_id` AS `leader_id`, " +
+			"`ts`.`withdrawn` AS `withdrawn`, " +
+			"`ts`.`student_flag` AS `student`, " +
+			"IF(`ts`.`team_id` = ?,`ts`.`best_score`,`ts`.`fz_best_score`) AS `best_score`, " +
+			"IF(`ts`.`team_id` = ?,`ts`.`best_started_at`,`ts`.`fz_best_started_at`) AS `best_score_started_at`, " +
+			"IF(`ts`.`team_id` = ?,`ts`.`best_finished_at`,`ts`.`fz_best_finished_at`) AS `best_score_marked_at`, " +
+			"IF(`ts`.`team_id` = ?,`ts`.`latest_score`,`ts`.`fz_latest_score`) AS `latest_score`, " +
+			"IF(`ts`.`team_id` = ?,`ts`.`latest_started_at`,`ts`.`fz_latest_started_at`) AS `latest_score_started_at`, " +
+			"IF(`ts`.`team_id` = ?,`ts`.`latest_finished_at`,`ts`.`fz_latest_finished_at`) AS `latest_score_marked_at`, " +
+			"IF(`ts`.`team_id` = ?,`ts`.`finish_count`, `ts`.`fz_finish_count`) AS `finish_count` " +
+			"FROM `team_scores` ts" +
 			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `team_scores`.`team_id` ASC"
 		err = tx.Select(&leaderboard, query, teamID, teamID, teamID, teamID, teamID, teamID, teamID)
 		if err != sql.ErrNoRows && err != nil {
@@ -1795,11 +1795,11 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 		*/
 	} else {
 		query := "SELECT " +
-			"`team_scores`.`team_id` AS `id`, " +
-			"`team_scores`.`name` AS `name`, " +
-			"`team_scores`.`leader_id` AS `leader_id`, " +
-			"`team_scores`.`withdrawn` AS `withdrawn`, " +
-			"`team_scores`.`student_flag` AS `student`, " +
+			"`ts`.`team_id` AS `id`, " +
+			"`ts`.`name` AS `name`, " +
+			"`ts`.`leader_id` AS `leader_id`, " +
+			"`ts`.`withdrawn` AS `withdrawn`, " +
+			"`ts`.`student_flag` AS `student`, " +
 			"`ts`.`best_score` AS `best_score`, " +
 			"`ts`.`best_started_at` AS `best_score_started_at`, " +
 			"`ts`.`best_finished_at` AS `best_score_marked_at`, " +
@@ -1807,7 +1807,7 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 			"`ts`.`latest_started_at` AS `latest_score_started_at`, " +
 			"`ts`.`latest_finished_at` AS `latest_score_marked_at`, " +
 			"`ts`.`finish_count` AS `finish_count` " +
-			"FROM `team_scores` " +
+			"FROM `team_scores` ts" +
 			"ORDER BY `latest_score` DESC, `latest_score_marked_at` ASC, `team_scores`.`team_id` ASC"
 		err = tx.Select(&leaderboard, query)
 		if err != sql.ErrNoRows && err != nil {
