@@ -1071,7 +1071,7 @@ func (*RegistrationService) CreateTeam(e echo.Context) error {
 
 	_, err = conn.ExecContext(
 		ctx,
-		"INSERT INTO `team_scores` (`team_id`.`name`,`leader_id`,`withdrawn`) VALUES (?,?,?,?)",
+		"INSERT INTO `team_scores` (`team_id`,`name`,`leader_id`,`withdrawn`) VALUES (?,?,?,?)",
 		teamID, req.TeamName, contestant.ID, 0,
 	)
 	if err != nil {
