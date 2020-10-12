@@ -610,25 +610,26 @@ func (*ContestantService) RequestClarification(e echo.Context) error {
 }
 
 var globalPool = sync.Pool{
-    New: func() interface{} {
-        return &bytes.Buffer{}
-    },
+	New: func() interface{} {
+		return &bytes.Buffer{}
+	},
 }
+
 func (*ContestantService) Dashboard(e echo.Context) error {
 	if ok, err := loginRequired(e, db, &loginRequiredOption{Team: true}); !ok {
 		return wrapError("check session", err)
 	}
 	team, _ := getCurrentTeam(e, db, false)
-                        contestStatus, err := getCurrentContestStatus(db)
-                        if err != nil {
-                                return wrapError("check session", err)
-                        }
-			contestFreezesAt := contestStatus.ContestFreezesAt
+	contestStatus, err := getCurrentContestStatus(db)
+	if err != nil {
+		return wrapError("check session", err)
+	}
+	contestFreezesAt := contestStatus.ContestFreezesAt
 	if contestFreezesAt.Add(-10 * time.Second).Before(time.Now()) {
-	res, err, _ := sfGroup.Do(fmt.Sprintf("dashboard%d", team.ID), func() (interface{}, error) {
-                        //start := time.Now()
-                        leaderboard, err := makeLeaderboardPB(team.ID)
-                        //end := time.Now()
+		res, err, _ := sfGroup.Do(fmt.Sprintf("dashboard%d", team.ID), func() (interface{}, error) {
+			//start := time.Now()
+			leaderboard, err := makeLeaderboardPB(team.ID)
+			//end := time.Now()
 			//log.Printf("team:%d %f秒\n", team.ID, (end.Sub(start)).Seconds())
 			if err != nil {
 				return nil, fmt.Errorf("make leaderboard: %w", err)
@@ -641,33 +642,33 @@ func (*ContestantService) Dashboard(e echo.Context) error {
 			ww.Close()
 			res = buffer.Bytes()
 			//end := time.Now()
-                        //log.Printf("team:%d %f秒\n", team.ID, (end.Sub(start)).Seconds())
-	                return res, nil 
-		}) 
-        if err != nil {
-                return err
-        }
-        e.Response().Header().Set("Content-Encoding", "gzip")
-        return e.Blob(http.StatusOK, "application/vnd.google.protobuf", res.([]byte))
+			//log.Printf("team:%d %f秒\n", team.ID, (end.Sub(start)).Seconds())
+			return res, nil
+		})
+		if err != nil {
+			return err
+		}
+		e.Response().Header().Set("Content-Encoding", "gzip")
+		return e.Blob(http.StatusOK, "application/vnd.google.protobuf", res.([]byte))
 	} else {
-	leaderboard, err := makeLeaderboardPB(team.ID)
-	if err != nil {
-		return err
+		leaderboard, err := makeLeaderboardPB(team.ID)
+		if err != nil {
+			return err
+		}
+		r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
+		res, _ := proto.Marshal(r)
+		buf := globalPool.Get().(*bytes.Buffer)
+		defer func() {
+			buf.Reset()
+			globalPool.Put(buf)
+		}()
+		ww := gzip.NewWriter(buf)
+		ww.Write(res)
+		ww.Close()
+		res = buf.Bytes()
+		e.Response().Header().Set("Content-Encoding", "gzip")
+		return e.Blob(http.StatusOK, "application/vnd.google.protobuf", res)
 	}
-	r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
-	res, _ := proto.Marshal(r)
-        buf := globalPool.Get().(*bytes.Buffer)
-        defer func(){
-           buf.Reset()
-           globalPool.Put(buf)
-        }()
-	ww := gzip.NewWriter(buf)
-	ww.Write(res)
-	ww.Close()
-	res = buf.Bytes()
-	e.Response().Header().Set("Content-Encoding", "gzip")
-	return e.Blob(http.StatusOK, "application/vnd.google.protobuf", res)
-}
 }
 
 var pushSubCacheLock sync.RWMutex
@@ -1360,7 +1361,7 @@ func backgroundLeaderboardPB() {
 				r := &audiencepb.DashboardResponse{Leaderboard: leaderboard}
 				res, _ := proto.Marshal(r)
 				var buffer bytes.Buffer
-				ww,_ := gzip.NewWriterLevel(&buffer,gzip.BestCompression)
+				ww, _ := gzip.NewWriterLevel(&buffer, gzip.BestCompression)
 				ww.Write(res)
 				ww.Close()
 				res = buffer.Bytes()

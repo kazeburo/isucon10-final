@@ -232,7 +232,6 @@ func (b *benchmarkReportService) saveAsFinished(db sqlx.Execer, job *xsuportal.B
 	if err != nil {
 		return fmt.Errorf("update benchmark job status: %w", err)
 	}
-
 	return nil
 }
 
