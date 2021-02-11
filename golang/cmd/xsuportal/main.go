@@ -1728,9 +1728,12 @@ func makeLeaderboardPB(teamID int64) (*resourcespb.Leaderboard, error) {
 		"FROM\n" +
 		"  `benchmark_jobs` force index(idx3)\n" +
 		"WHERE\n" +
+		"  `started_at` IS NOT NULL\n" +
+		"  AND (\n" +
 		"    `finished_at` IS NOT NULL\n" +
 		"    -- score freeze\n" +
 		"    AND (`team_id` = ? OR (`team_id` != ? AND (? = TRUE OR `finished_at` < ?)))\n" +
+		"  )\n" +
 		"ORDER BY\n" +
 		"  `finished_at`"
 	var jobResults []xsuportal.JobResult
